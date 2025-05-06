@@ -7,7 +7,7 @@ package db
 import (
 	"context"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
@@ -17,15 +17,15 @@ type Querier interface {
 	CreateOutboxEvent(ctx context.Context, arg CreateOutboxEventParams) (OutboxEvent, error)
 	CreatePayment(ctx context.Context, arg CreatePaymentParams) (Payment, error)
 	DeleteHistory(ctx context.Context, id int32) error
-	DeleteOrder(ctx context.Context, id uuid.UUID) error
-	DeleteOrderItem(ctx context.Context, id uuid.UUID) error
-	DeleteOutboxEvent(ctx context.Context, id uuid.UUID) error
-	DeletePayment(ctx context.Context, id uuid.UUID) error
+	DeleteOrder(ctx context.Context, id pgtype.UUID) error
+	DeleteOrderItem(ctx context.Context, id int32) error
+	DeleteOutboxEvent(ctx context.Context, id pgtype.UUID) error
+	DeletePayment(ctx context.Context, id pgtype.UUID) error
 	GetHistory(ctx context.Context, id int32) (History, error)
-	GetOrder(ctx context.Context, id uuid.UUID) (Order, error)
-	GetOrderItem(ctx context.Context, id uuid.UUID) (OrderItem, error)
-	GetOutboxEvent(ctx context.Context, id uuid.UUID) (OutboxEvent, error)
-	GetPayment(ctx context.Context, id uuid.UUID) (Payment, error)
+	GetOrder(ctx context.Context, id pgtype.UUID) (Order, error)
+	GetOrderItem(ctx context.Context, id int32) (OrderItem, error)
+	GetOutboxEvent(ctx context.Context, id pgtype.UUID) (OutboxEvent, error)
+	GetPayment(ctx context.Context, id pgtype.UUID) (Payment, error)
 	UpdateHistory(ctx context.Context, arg UpdateHistoryParams) (History, error)
 	UpdateOrder(ctx context.Context, arg UpdateOrderParams) (Order, error)
 	UpdateOrderItem(ctx context.Context, arg UpdateOrderItemParams) (OrderItem, error)

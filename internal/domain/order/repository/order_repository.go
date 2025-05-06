@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"fmt"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	db "orders-center/db/sqlc"
 	"orders-center/internal/domain/order/entity"
 )
@@ -16,7 +18,7 @@ func NewOrderRepository(q db.Queries) OrderRepository {
 }
 func (r *orderRepository) CreateOrder(ctx context.Context, arg CreateOrderParams) (entity.Order, error) {
 	sqlArg := db.CreateOrderParams{
-		ID:          arg.ID,
+		ID:          pgtype.UUID{Bytes: arg.ID, Valid: true},
 		Type:        arg.Type,
 		Status:      arg.Status,
 		City:        arg.City,
@@ -51,8 +53,8 @@ func (r *orderRepository) CreateOrder(ctx context.Context, arg CreateOrderParams
 	}
 	return orderEntity, nil
 }
-func (r *orderRepository) GetOrder(ctx context.Context, id int32) (entity.Order, error) {
-	order, err := r.q.GetOrder(ctx, id)
+func (r *orderRepository) GetOrder(ctx context.Context, id uuid.UUID) (entity.Order, error) {
+	order, err := r.q.GetOrder(ctx, pgtype.UUID{Bytes: id})
 	if err != nil {
 		return entity.Order{}, err
 	}
@@ -76,6 +78,6 @@ func (r *orderRepository) GetOrder(ctx context.Context, id int32) (entity.Order,
 	}
 	return orderEntity, nil
 }
-func (r *orderRepository) DeleteOrder(ctx context.Context, id int32) error {
-	return r.q.DeleteOrder(ctx, id)
+func (r *orderRepository) DeleteOrder(ctx context.Context, id uuid.UUID) error {
+	return r.q.DeleteOrder(ctx, pgtype.UUID{Bytes: id})
 }

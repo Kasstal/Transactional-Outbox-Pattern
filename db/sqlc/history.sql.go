@@ -8,6 +8,8 @@ package db
 import (
 	"context"
 	"encoding/json"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createHistory = `-- name: CreateHistory :one
@@ -24,7 +26,7 @@ type CreateHistoryParams struct {
 	OldValue json.RawMessage `json:"old_value"`
 	Value    json.RawMessage `json:"value"`
 	UserID   string          `json:"user_id"`
-	OrderID  string          `json:"order_id"`
+	OrderID  pgtype.UUID     `json:"order_id"`
 }
 
 func (q *Queries) CreateHistory(ctx context.Context, arg CreateHistoryParams) (History, error) {

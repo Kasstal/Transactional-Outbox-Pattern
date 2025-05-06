@@ -1,5 +1,5 @@
 CREATE TABLE "orders" (
-                          "id" serial PRIMARY KEY ,
+                          "id" uuid PRIMARY KEY ,
                           "type" varchar(50) NOT NULL,
                           "status" varchar(50) NOT NULL,
                           "city" varchar(100) NOT NULL,
@@ -7,7 +7,7 @@ CREATE TABLE "orders" (
                           "price" decimal(12,2) NOT NULL,
                           "platform" varchar(50) NOT NULL,
                           "general_id" uuid NOT NULL,
-                          "order_number" varchar(50) UNIQUE NOT NULL,
+                          "order_number" varchar(50),
                           "executor" varchar(100),
                           "created_at" timestamptz NOT NULL DEFAULT (now()),
                           "updated_at" timestamptz NOT NULL DEFAULT (now())
@@ -33,7 +33,7 @@ CREATE TABLE "order_items" (
 );
 
 CREATE TABLE "payments" (
-                            "id" uuid PRIMARY KEY DEFAULT (gen_random_uuid()),
+                            "id" uuid PRIMARY KEY,
                             "order_id" uuid NOT NULL,
                             "type" varchar(20) NOT NULL,
                             "sum" decimal(12,2) NOT NULL,
@@ -67,7 +67,7 @@ CREATE TABLE "history" (
                            "value" jsonb NOT NULL,
                            "date" timestamptz NOT NULL DEFAULT (now()),
                            "user_id" varchar(36) NOT NULL,
-                           "order_id" varchar(36) NOT NULL
+                           "order_id" uuid NOT NULL
 );
 
 CREATE INDEX ON "orders" ("status");
@@ -97,6 +97,8 @@ CREATE INDEX ON "outbox_events" ("created_at");
 CREATE INDEX ON "history" ("order_id");
 
 CREATE INDEX ON "history" ("date");
+
+
 
 ALTER TABLE "order_items" ADD FOREIGN KEY ("order_id") REFERENCES "orders" ("id");
 

@@ -9,6 +9,7 @@ sql:
         out: "db/sqlc"
         sql_package: "pgx/v5"
         emit_json_tags: true
+        emit_interface: true
         overrides:
           - column: "*.credit_data"
             go_type: "encoding/json.RawMessage"

@@ -18,11 +18,11 @@ type History struct {
 	Value    json.RawMessage    `json:"value"`
 	Date     pgtype.Timestamptz `json:"date"`
 	UserID   string             `json:"user_id"`
-	OrderID  string             `json:"order_id"`
+	OrderID  pgtype.UUID        `json:"order_id"`
 }
 
 type Order struct {
-	ID          int32              `json:"id"`
+	ID          pgtype.UUID        `json:"id"`
 	Type        string             `json:"type"`
 	Status      string             `json:"status"`
 	City        string             `json:"city"`
