@@ -22,7 +22,7 @@ INSERT INTO order_items (
 `
 
 type CreateOrderItemParams struct {
-	ID            pgtype.UUID    `json:"id"`
+	ID            int32          `json:"id"`
 	ProductID     string         `json:"product_id"`
 	ExternalID    pgtype.Text    `json:"external_id"`
 	Status        string         `json:"status"`
@@ -81,7 +81,7 @@ const deleteOrderItem = `-- name: DeleteOrderItem :exec
 DELETE FROM order_items WHERE id = $1
 `
 
-func (q *Queries) DeleteOrderItem(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) DeleteOrderItem(ctx context.Context, id int32) error {
 	_, err := q.db.Exec(ctx, deleteOrderItem, id)
 	return err
 }
@@ -90,7 +90,7 @@ const getOrderItem = `-- name: GetOrderItem :one
 SELECT id, product_id, external_id, status, base_price, price, earned_bonuses, spent_bonuses, gift, owner_id, delivery_id, shop_assistant, warehouse, order_id, created_at, updated_at FROM order_items WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetOrderItem(ctx context.Context, id pgtype.UUID) (OrderItem, error) {
+func (q *Queries) GetOrderItem(ctx context.Context, id int32) (OrderItem, error) {
 	row := q.db.QueryRow(ctx, getOrderItem, id)
 	var i OrderItem
 	err := row.Scan(
@@ -135,7 +135,7 @@ WHERE id = $1
 `
 
 type UpdateOrderItemParams struct {
-	ID            pgtype.UUID    `json:"id"`
+	ID            int32          `json:"id"`
 	ProductID     string         `json:"product_id"`
 	ExternalID    pgtype.Text    `json:"external_id"`
 	Status        string         `json:"status"`

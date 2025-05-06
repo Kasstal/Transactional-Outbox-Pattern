@@ -22,7 +22,7 @@ type History struct {
 }
 
 type Order struct {
-	ID          pgtype.UUID        `json:"id"`
+	ID          int32              `json:"id"`
 	Type        string             `json:"type"`
 	Status      string             `json:"status"`
 	City        string             `json:"city"`
@@ -37,7 +37,7 @@ type Order struct {
 }
 
 type OrderItem struct {
-	ID            pgtype.UUID        `json:"id"`
+	ID            int32              `json:"id"`
 	ProductID     string             `json:"product_id"`
 	ExternalID    pgtype.Text        `json:"external_id"`
 	Status        string             `json:"status"`

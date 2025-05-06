@@ -21,7 +21,7 @@ INSERT INTO orders (
 `
 
 type CreateOrderParams struct {
-	ID          pgtype.UUID    `json:"id"`
+	ID          int32          `json:"id"`
 	Type        string         `json:"type"`
 	Status      string         `json:"status"`
 	City        string         `json:"city"`
@@ -68,7 +68,7 @@ const deleteOrder = `-- name: DeleteOrder :exec
 DELETE FROM orders WHERE id = $1
 `
 
-func (q *Queries) DeleteOrder(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) DeleteOrder(ctx context.Context, id int32) error {
 	_, err := q.db.Exec(ctx, deleteOrder, id)
 	return err
 }
@@ -77,7 +77,7 @@ const getOrder = `-- name: GetOrder :one
 SELECT id, type, status, city, subdivision, price, platform, general_id, order_number, executor, created_at, updated_at FROM orders WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetOrder(ctx context.Context, id pgtype.UUID) (Order, error) {
+func (q *Queries) GetOrder(ctx context.Context, id int32) (Order, error) {
 	row := q.db.QueryRow(ctx, getOrder, id)
 	var i Order
 	err := row.Scan(
@@ -115,7 +115,7 @@ WHERE id = $1
 `
 
 type UpdateOrderParams struct {
-	ID          pgtype.UUID    `json:"id"`
+	ID          int32          `json:"id"`
 	Type        string         `json:"type"`
 	Status      string         `json:"status"`
 	City        string         `json:"city"`

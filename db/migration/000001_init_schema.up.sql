@@ -1,5 +1,5 @@
 CREATE TABLE "orders" (
-                          "id" uuid PRIMARY KEY DEFAULT (gen_random_uuid()),
+                          "id" serial PRIMARY KEY ,
                           "type" varchar(50) NOT NULL,
                           "status" varchar(50) NOT NULL,
                           "city" varchar(100) NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE "orders" (
 );
 
 CREATE TABLE "order_items" (
-                               "id" uuid PRIMARY KEY DEFAULT (gen_random_uuid()),
+                               "id" serial PRIMARY KEY,
                                "product_id" varchar(36) NOT NULL,
                                "external_id" varchar(50),
                                "status" varchar(50) NOT NULL,
