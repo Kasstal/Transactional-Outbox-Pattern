@@ -10,8 +10,20 @@ type historyRepository struct {
 	q db.Queries
 }
 
-func (r *historyRepository) CreateHistory(ctx context.Context, arg db.CreateHistoryParams) (entity.History, error) {
-	history, err := r.q.CreateHistory(ctx, arg)
+func NewHistoryRepository(q db.Queries) HistoryRepository {
+	return &historyRepository{q: q}
+}
+
+func (r *historyRepository) CreateHistory(ctx context.Context, arg CreateHistoryParams) (entity.History, error) {
+	sqlArg := db.CreateHistoryParams{
+		Type:     arg.Type,
+		TypeID:   arg.TypeID,
+		OldValue: arg.OldValue,
+		Value:    arg.Value,
+		UserID:   arg.UserID,
+		OrderID:  arg.OrderID,
+	}
+	history, err := r.q.CreateHistory(ctx, sqlArg)
 	if err != nil {
 		return entity.History{}, err
 	}
