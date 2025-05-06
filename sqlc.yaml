@@ -1,0 +1,27 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "db/query/"
+    schema: "db/migration/"
+    gen:
+      go:
+        package: "db"
+        out: "db/sqlc"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        overrides:
+          - column: "*.credit_data"
+            go_type: "encoding/json.RawMessage"
+            nullable: true
+          - column: "*.card_data"
+            go_type: "encoding/json.RawMessage"
+            nullable: true
+          - column: "*.payload"
+            go_type: "encoding/json.RawMessage"
+            nullable: false
+          - column: "*.value"
+            go_type: "encoding/json.RawMessage"
+            nullable: false
+          - column: "*.old_value"
+            go_type: "encoding/json.RawMessage"
+            nullable: true

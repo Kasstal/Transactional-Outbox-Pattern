@@ -7,29 +7,28 @@ package db
 
 import (
 	"context"
-
-	"github.com/google/uuid"
+	"encoding/json"
 )
 
 const createHistory = `-- name: CreateHistory :one
 INSERT INTO history (
-  type, type_id, old_value, value, user_id, order_id
+    type, type_id, old_value, value, user_id, order_id
 ) VALUES (
-  $1, $2, $3, $4, $5, $6
-) RETURNING id, type, type_id, old_value, value, date, user_id, order_id, created_at, updated_at
+             $1, $2, $3, $4, $5, $6
+         ) RETURNING id, type, type_id, old_value, value, date, user_id, order_id
 `
 
 type CreateHistoryParams struct {
-	Type     string    `json:"type"`
-	TypeID   int32     `json:"type_id"`
-	OldValue []byte    `json:"old_value"`
-	Value    []byte    `json:"value"`
-	UserID   string    `json:"user_id"`
-	OrderID  uuid.UUID `json:"order_id"`
+	Type     string          `json:"type"`
+	TypeID   int32           `json:"type_id"`
+	OldValue json.RawMessage `json:"old_value"`
+	Value    json.RawMessage `json:"value"`
+	UserID   string          `json:"user_id"`
+	OrderID  string          `json:"order_id"`
 }
 
 func (q *Queries) CreateHistory(ctx context.Context, arg CreateHistoryParams) (History, error) {
-	row := q.db.QueryRowContext(ctx, createHistory,
+	row := q.db.QueryRow(ctx, createHistory,
 		arg.Type,
 		arg.TypeID,
 		arg.OldValue,
@@ -47,8 +46,6 @@ func (q *Queries) CreateHistory(ctx context.Context, arg CreateHistoryParams) (H
 		&i.Date,
 		&i.UserID,
 		&i.OrderID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -58,16 +55,16 @@ DELETE FROM history WHERE id = $1
 `
 
 func (q *Queries) DeleteHistory(ctx context.Context, id int32) error {
-	_, err := q.db.ExecContext(ctx, deleteHistory, id)
+	_, err := q.db.Exec(ctx, deleteHistory, id)
 	return err
 }
 
 const getHistory = `-- name: GetHistory :one
-SELECT id, type, type_id, old_value, value, date, user_id, order_id, created_at, updated_at FROM history WHERE id = $1 LIMIT 1
+SELECT id, type, type_id, old_value, value, date, user_id, order_id FROM history WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetHistory(ctx context.Context, id int32) (History, error) {
-	row := q.db.QueryRowContext(ctx, getHistory, id)
+	row := q.db.QueryRow(ctx, getHistory, id)
 	var i History
 	err := row.Scan(
 		&i.ID,
@@ -78,55 +75,51 @@ func (q *Queries) GetHistory(ctx context.Context, id int32) (History, error) {
 		&i.Date,
 		&i.UserID,
 		&i.OrderID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 	)
 	return i, err
 }
 
-const listHistoryByOrder = `-- name: ListHistoryByOrder :many
-SELECT id, type, type_id, old_value, value, date, user_id, order_id, created_at, updated_at FROM history 
-WHERE order_id = $1 
-ORDER BY date DESC
-LIMIT $2 OFFSET $3
+const updateHistory = `-- name: UpdateHistory :one
+UPDATE history
+SET
+    type = $2,
+    type_id = $3,
+    old_value = $4,
+    value = $5,
+    user_id = $6,
+    date = now()
+WHERE id = $1
+    RETURNING id, type, type_id, old_value, value, date, user_id, order_id
 `
 
-type ListHistoryByOrderParams struct {
-	OrderID uuid.UUID `json:"order_id"`
-	Limit   int32     `json:"limit"`
-	Offset  int32     `json:"offset"`
+type UpdateHistoryParams struct {
+	ID       int32           `json:"id"`
+	Type     string          `json:"type"`
+	TypeID   int32           `json:"type_id"`
+	OldValue json.RawMessage `json:"old_value"`
+	Value    json.RawMessage `json:"value"`
+	UserID   string          `json:"user_id"`
 }
 
-func (q *Queries) ListHistoryByOrder(ctx context.Context, arg ListHistoryByOrderParams) ([]History, error) {
-	rows, err := q.db.QueryContext(ctx, listHistoryByOrder, arg.OrderID, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []History{}
-	for rows.Next() {
-		var i History
-		if err := rows.Scan(
-			&i.ID,
-			&i.Type,
-			&i.TypeID,
-			&i.OldValue,
-			&i.Value,
-			&i.Date,
-			&i.UserID,
-			&i.OrderID,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) UpdateHistory(ctx context.Context, arg UpdateHistoryParams) (History, error) {
+	row := q.db.QueryRow(ctx, updateHistory,
+		arg.ID,
+		arg.Type,
+		arg.TypeID,
+		arg.OldValue,
+		arg.Value,
+		arg.UserID,
+	)
+	var i History
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.TypeID,
+		&i.OldValue,
+		&i.Value,
+		&i.Date,
+		&i.UserID,
+		&i.OrderID,
+	)
+	return i, err
 }

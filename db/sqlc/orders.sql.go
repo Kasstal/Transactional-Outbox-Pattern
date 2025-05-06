@@ -7,34 +7,35 @@ package db
 
 import (
 	"context"
-	"database/sql"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createOrder = `-- name: CreateOrder :one
 INSERT INTO orders (
-  type, status, city, subdivision, price, platform,
-  general_id, order_number, executor
+    id, type, status, city, subdivision, price,
+    platform, general_id, order_number, executor
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9
-) RETURNING id, type, status, city, subdivision, price, platform, general_id, order_number, executor, created_at, updated_at
+             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+         ) RETURNING id, type, status, city, subdivision, price, platform, general_id, order_number, executor, created_at, updated_at
 `
 
 type CreateOrderParams struct {
+	ID          pgtype.UUID    `json:"id"`
 	Type        string         `json:"type"`
 	Status      string         `json:"status"`
 	City        string         `json:"city"`
-	Subdivision sql.NullString `json:"subdivision"`
-	Price       string         `json:"price"`
+	Subdivision pgtype.Text    `json:"subdivision"`
+	Price       pgtype.Numeric `json:"price"`
 	Platform    string         `json:"platform"`
-	GeneralID   uuid.UUID      `json:"general_id"`
+	GeneralID   pgtype.UUID    `json:"general_id"`
 	OrderNumber string         `json:"order_number"`
-	Executor    sql.NullString `json:"executor"`
+	Executor    pgtype.Text    `json:"executor"`
 }
 
 func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order, error) {
-	row := q.db.QueryRowContext(ctx, createOrder,
+	row := q.db.QueryRow(ctx, createOrder,
+		arg.ID,
 		arg.Type,
 		arg.Status,
 		arg.City,
@@ -67,8 +68,8 @@ const deleteOrder = `-- name: DeleteOrder :exec
 DELETE FROM orders WHERE id = $1
 `
 
-func (q *Queries) DeleteOrder(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, deleteOrder, id)
+func (q *Queries) DeleteOrder(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteOrder, id)
 	return err
 }
 
@@ -76,8 +77,8 @@ const getOrder = `-- name: GetOrder :one
 SELECT id, type, status, city, subdivision, price, platform, general_id, order_number, executor, created_at, updated_at FROM orders WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetOrder(ctx context.Context, id uuid.UUID) (Order, error) {
-	row := q.db.QueryRowContext(ctx, getOrder, id)
+func (q *Queries) GetOrder(ctx context.Context, id pgtype.UUID) (Order, error) {
+	row := q.db.QueryRow(ctx, getOrder, id)
 	var i Order
 	err := row.Scan(
 		&i.ID,
@@ -96,93 +97,49 @@ func (q *Queries) GetOrder(ctx context.Context, id uuid.UUID) (Order, error) {
 	return i, err
 }
 
-const getOrderForUpdate = `-- name: GetOrderForUpdate :one
-SELECT id, type, status, city, subdivision, price, platform, general_id, order_number, executor, created_at, updated_at FROM orders WHERE id = $1 LIMIT 1 FOR NO KEY UPDATE
+const updateOrder = `-- name: UpdateOrder :one
+UPDATE orders
+SET
+    type = $2,
+    status = $3,
+    city = $4,
+    subdivision = $5,
+    price = $6,
+    platform = $7,
+    general_id = $8,
+    order_number = $9,
+    executor = $10,
+    updated_at = now()
+WHERE id = $1
+    RETURNING id, type, status, city, subdivision, price, platform, general_id, order_number, executor, created_at, updated_at
 `
 
-func (q *Queries) GetOrderForUpdate(ctx context.Context, id uuid.UUID) (Order, error) {
-	row := q.db.QueryRowContext(ctx, getOrderForUpdate, id)
-	var i Order
-	err := row.Scan(
-		&i.ID,
-		&i.Type,
-		&i.Status,
-		&i.City,
-		&i.Subdivision,
-		&i.Price,
-		&i.Platform,
-		&i.GeneralID,
-		&i.OrderNumber,
-		&i.Executor,
-		&i.CreatedAt,
-		&i.UpdatedAt,
+type UpdateOrderParams struct {
+	ID          pgtype.UUID    `json:"id"`
+	Type        string         `json:"type"`
+	Status      string         `json:"status"`
+	City        string         `json:"city"`
+	Subdivision pgtype.Text    `json:"subdivision"`
+	Price       pgtype.Numeric `json:"price"`
+	Platform    string         `json:"platform"`
+	GeneralID   pgtype.UUID    `json:"general_id"`
+	OrderNumber string         `json:"order_number"`
+	Executor    pgtype.Text    `json:"executor"`
+}
+
+func (q *Queries) UpdateOrder(ctx context.Context, arg UpdateOrderParams) (Order, error) {
+	row := q.db.QueryRow(ctx, updateOrder,
+		arg.ID,
+		arg.Type,
+		arg.Status,
+		arg.City,
+		arg.Subdivision,
+		arg.Price,
+		arg.Platform,
+		arg.GeneralID,
+		arg.OrderNumber,
+		arg.Executor,
 	)
-	return i, err
-}
-
-const listOrders = `-- name: ListOrders :many
-SELECT id, type, status, city, subdivision, price, platform, general_id, order_number, executor, created_at, updated_at FROM orders 
-WHERE executor = $1 
-ORDER BY created_at DESC
-LIMIT $2 OFFSET $3
-`
-
-type ListOrdersParams struct {
-	Executor sql.NullString `json:"executor"`
-	Limit    int32          `json:"limit"`
-	Offset   int32          `json:"offset"`
-}
-
-func (q *Queries) ListOrders(ctx context.Context, arg ListOrdersParams) ([]Order, error) {
-	rows, err := q.db.QueryContext(ctx, listOrders, arg.Executor, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Order{}
-	for rows.Next() {
-		var i Order
-		if err := rows.Scan(
-			&i.ID,
-			&i.Type,
-			&i.Status,
-			&i.City,
-			&i.Subdivision,
-			&i.Price,
-			&i.Platform,
-			&i.GeneralID,
-			&i.OrderNumber,
-			&i.Executor,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const updateOrderStatus = `-- name: UpdateOrderStatus :one
-UPDATE orders 
-SET status = $2, updated_at = now() 
-WHERE id = $1 
-RETURNING id, type, status, city, subdivision, price, platform, general_id, order_number, executor, created_at, updated_at
-`
-
-type UpdateOrderStatusParams struct {
-	ID     uuid.UUID `json:"id"`
-	Status string    `json:"status"`
-}
-
-func (q *Queries) UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) (Order, error) {
-	row := q.db.QueryRowContext(ctx, updateOrderStatus, arg.ID, arg.Status)
 	var i Order
 	err := row.Scan(
 		&i.ID,

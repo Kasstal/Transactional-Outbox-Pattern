@@ -7,51 +7,40 @@ package db
 
 import (
 	"context"
-	"database/sql"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
-
-const calculateOrderTotal = `-- name: CalculateOrderTotal :one
-SELECT SUM(price) as total FROM order_items 
-WHERE order_id = $1
-`
-
-func (q *Queries) CalculateOrderTotal(ctx context.Context, orderID uuid.UUID) (int64, error) {
-	row := q.db.QueryRowContext(ctx, calculateOrderTotal, orderID)
-	var total int64
-	err := row.Scan(&total)
-	return total, err
-}
 
 const createOrderItem = `-- name: CreateOrderItem :one
 INSERT INTO order_items (
-  product_id, external_id, status, base_price, price,
-  earned_bonuses, spent_bonuses, gift, owner_id,
-  delivery_id, shop_assistant, warehouse, order_id
+    id, product_id, external_id, status, base_price,
+    price, earned_bonuses, spent_bonuses, gift,
+    owner_id, delivery_id, shop_assistant, warehouse, order_id
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
-) RETURNING id, product_id, external_id, status, base_price, price, earned_bonuses, spent_bonuses, gift, owner_id, delivery_id, shop_assistant, warehouse, order_id, created_at, updated_at
+             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+         ) RETURNING id, product_id, external_id, status, base_price, price, earned_bonuses, spent_bonuses, gift, owner_id, delivery_id, shop_assistant, warehouse, order_id, created_at, updated_at
 `
 
 type CreateOrderItemParams struct {
+	ID            pgtype.UUID    `json:"id"`
 	ProductID     string         `json:"product_id"`
-	ExternalID    sql.NullString `json:"external_id"`
+	ExternalID    pgtype.Text    `json:"external_id"`
 	Status        string         `json:"status"`
-	BasePrice     string         `json:"base_price"`
-	Price         string         `json:"price"`
-	EarnedBonuses sql.NullString `json:"earned_bonuses"`
-	SpentBonuses  sql.NullString `json:"spent_bonuses"`
-	Gift          sql.NullBool   `json:"gift"`
-	OwnerID       sql.NullString `json:"owner_id"`
-	DeliveryID    sql.NullString `json:"delivery_id"`
-	ShopAssistant sql.NullString `json:"shop_assistant"`
-	Warehouse     sql.NullString `json:"warehouse"`
-	OrderID       uuid.UUID      `json:"order_id"`
+	BasePrice     pgtype.Numeric `json:"base_price"`
+	Price         pgtype.Numeric `json:"price"`
+	EarnedBonuses pgtype.Numeric `json:"earned_bonuses"`
+	SpentBonuses  pgtype.Numeric `json:"spent_bonuses"`
+	Gift          pgtype.Bool    `json:"gift"`
+	OwnerID       pgtype.Text    `json:"owner_id"`
+	DeliveryID    pgtype.Text    `json:"delivery_id"`
+	ShopAssistant pgtype.Text    `json:"shop_assistant"`
+	Warehouse     pgtype.Text    `json:"warehouse"`
+	OrderID       pgtype.UUID    `json:"order_id"`
 }
 
 func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (OrderItem, error) {
-	row := q.db.QueryRowContext(ctx, createOrderItem,
+	row := q.db.QueryRow(ctx, createOrderItem,
+		arg.ID,
 		arg.ProductID,
 		arg.ExternalID,
 		arg.Status,
@@ -88,12 +77,21 @@ func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams
 	return i, err
 }
 
+const deleteOrderItem = `-- name: DeleteOrderItem :exec
+DELETE FROM order_items WHERE id = $1
+`
+
+func (q *Queries) DeleteOrderItem(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteOrderItem, id)
+	return err
+}
+
 const getOrderItem = `-- name: GetOrderItem :one
 SELECT id, product_id, external_id, status, base_price, price, earned_bonuses, spent_bonuses, gift, owner_id, delivery_id, shop_assistant, warehouse, order_id, created_at, updated_at FROM order_items WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetOrderItem(ctx context.Context, id uuid.UUID) (OrderItem, error) {
-	row := q.db.QueryRowContext(ctx, getOrderItem, id)
+func (q *Queries) GetOrderItem(ctx context.Context, id pgtype.UUID) (OrderItem, error) {
+	row := q.db.QueryRow(ctx, getOrderItem, id)
 	var i OrderItem
 	err := row.Scan(
 		&i.ID,
@@ -116,66 +114,58 @@ func (q *Queries) GetOrderItem(ctx context.Context, id uuid.UUID) (OrderItem, er
 	return i, err
 }
 
-const listOrderItems = `-- name: ListOrderItems :many
-SELECT id, product_id, external_id, status, base_price, price, earned_bonuses, spent_bonuses, gift, owner_id, delivery_id, shop_assistant, warehouse, order_id, created_at, updated_at FROM order_items 
-WHERE order_id = $1
-ORDER BY created_at DESC
-`
-
-func (q *Queries) ListOrderItems(ctx context.Context, orderID uuid.UUID) ([]OrderItem, error) {
-	rows, err := q.db.QueryContext(ctx, listOrderItems, orderID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []OrderItem{}
-	for rows.Next() {
-		var i OrderItem
-		if err := rows.Scan(
-			&i.ID,
-			&i.ProductID,
-			&i.ExternalID,
-			&i.Status,
-			&i.BasePrice,
-			&i.Price,
-			&i.EarnedBonuses,
-			&i.SpentBonuses,
-			&i.Gift,
-			&i.OwnerID,
-			&i.DeliveryID,
-			&i.ShopAssistant,
-			&i.Warehouse,
-			&i.OrderID,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const updateOrderItemStatus = `-- name: UpdateOrderItemStatus :one
+const updateOrderItem = `-- name: UpdateOrderItem :one
 UPDATE order_items
-SET status = $2, updated_at = now()
+SET
+    product_id = $2,
+    external_id = $3,
+    status = $4,
+    base_price = $5,
+    price = $6,
+    earned_bonuses = $7,
+    spent_bonuses = $8,
+    gift = $9,
+    owner_id = $10,
+    delivery_id = $11,
+    shop_assistant = $12,
+    warehouse = $13,
+    updated_at = now()
 WHERE id = $1
-RETURNING id, product_id, external_id, status, base_price, price, earned_bonuses, spent_bonuses, gift, owner_id, delivery_id, shop_assistant, warehouse, order_id, created_at, updated_at
+    RETURNING id, product_id, external_id, status, base_price, price, earned_bonuses, spent_bonuses, gift, owner_id, delivery_id, shop_assistant, warehouse, order_id, created_at, updated_at
 `
 
-type UpdateOrderItemStatusParams struct {
-	ID     uuid.UUID `json:"id"`
-	Status string    `json:"status"`
+type UpdateOrderItemParams struct {
+	ID            pgtype.UUID    `json:"id"`
+	ProductID     string         `json:"product_id"`
+	ExternalID    pgtype.Text    `json:"external_id"`
+	Status        string         `json:"status"`
+	BasePrice     pgtype.Numeric `json:"base_price"`
+	Price         pgtype.Numeric `json:"price"`
+	EarnedBonuses pgtype.Numeric `json:"earned_bonuses"`
+	SpentBonuses  pgtype.Numeric `json:"spent_bonuses"`
+	Gift          pgtype.Bool    `json:"gift"`
+	OwnerID       pgtype.Text    `json:"owner_id"`
+	DeliveryID    pgtype.Text    `json:"delivery_id"`
+	ShopAssistant pgtype.Text    `json:"shop_assistant"`
+	Warehouse     pgtype.Text    `json:"warehouse"`
 }
 
-func (q *Queries) UpdateOrderItemStatus(ctx context.Context, arg UpdateOrderItemStatusParams) (OrderItem, error) {
-	row := q.db.QueryRowContext(ctx, updateOrderItemStatus, arg.ID, arg.Status)
+func (q *Queries) UpdateOrderItem(ctx context.Context, arg UpdateOrderItemParams) (OrderItem, error) {
+	row := q.db.QueryRow(ctx, updateOrderItem,
+		arg.ID,
+		arg.ProductID,
+		arg.ExternalID,
+		arg.Status,
+		arg.BasePrice,
+		arg.Price,
+		arg.EarnedBonuses,
+		arg.SpentBonuses,
+		arg.Gift,
+		arg.OwnerID,
+		arg.DeliveryID,
+		arg.ShopAssistant,
+		arg.Warehouse,
+	)
 	var i OrderItem
 	err := row.Scan(
 		&i.ID,

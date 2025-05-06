@@ -5,140 +5,79 @@
 package db
 
 import (
-	"database/sql"
-	"database/sql/driver"
-	"fmt"
-	"time"
+	"encoding/json"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
-
-type PaymentType string
-
-const (
-	PaymentTypeCashAtShop    PaymentType = "cash_at_shop"
-	PaymentTypeCashToCourier PaymentType = "cash_to_courier"
-	PaymentTypeCard          PaymentType = "card"
-	PaymentTypeCardOnline    PaymentType = "card_online"
-	PaymentTypeCredit        PaymentType = "credit"
-	PaymentTypeBonuses       PaymentType = "bonuses"
-	PaymentTypeCashless      PaymentType = "cashless"
-	PaymentTypePrepayment    PaymentType = "prepayment"
-)
-
-func (e *PaymentType) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = PaymentType(s)
-	case string:
-		*e = PaymentType(s)
-	default:
-		return fmt.Errorf("unsupported scan type for PaymentType: %T", src)
-	}
-	return nil
-}
-
-type NullPaymentType struct {
-	PaymentType PaymentType `json:"payment_type"`
-	Valid       bool        `json:"valid"` // Valid is true if PaymentType is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullPaymentType) Scan(value interface{}) error {
-	if value == nil {
-		ns.PaymentType, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.PaymentType.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullPaymentType) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.PaymentType), nil
-}
-
-type CardPaymentDatum struct {
-	ID            int32     `json:"id"`
-	PaymentID     uuid.UUID `json:"payment_id"`
-	Provider      string    `json:"provider"`
-	TransactionID string    `json:"transaction_id"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
-}
-
-type CreditDatum struct {
-	ID             int32          `json:"id"`
-	PaymentID      uuid.UUID      `json:"payment_id"`
-	Bank           string         `json:"bank"`
-	Type           string         `json:"type"`
-	NumberOfMonths int16          `json:"number_of_months"`
-	PaySumPerMonth string         `json:"pay_sum_per_month"`
-	BrokerID       sql.NullInt32  `json:"broker_id"`
-	Iin            sql.NullString `json:"iin"`
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
-}
 
 type History struct {
-	ID        int32     `json:"id"`
-	Type      string    `json:"type"`
-	TypeID    int32     `json:"type_id"`
-	OldValue  []byte    `json:"old_value"`
-	Value     []byte    `json:"value"`
-	Date      time.Time `json:"date"`
-	UserID    string    `json:"user_id"`
-	OrderID   uuid.UUID `json:"order_id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID       int32              `json:"id"`
+	Type     string             `json:"type"`
+	TypeID   int32              `json:"type_id"`
+	OldValue json.RawMessage    `json:"old_value"`
+	Value    json.RawMessage    `json:"value"`
+	Date     pgtype.Timestamptz `json:"date"`
+	UserID   string             `json:"user_id"`
+	OrderID  string             `json:"order_id"`
 }
 
 type Order struct {
-	ID          uuid.UUID      `json:"id"`
-	Type        string         `json:"type"`
-	Status      string         `json:"status"`
-	City        string         `json:"city"`
-	Subdivision sql.NullString `json:"subdivision"`
-	Price       string         `json:"price"`
-	Platform    string         `json:"platform"`
-	GeneralID   uuid.UUID      `json:"general_id"`
-	OrderNumber string         `json:"order_number"`
-	Executor    sql.NullString `json:"executor"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
+	ID          pgtype.UUID        `json:"id"`
+	Type        string             `json:"type"`
+	Status      string             `json:"status"`
+	City        string             `json:"city"`
+	Subdivision pgtype.Text        `json:"subdivision"`
+	Price       pgtype.Numeric     `json:"price"`
+	Platform    string             `json:"platform"`
+	GeneralID   pgtype.UUID        `json:"general_id"`
+	OrderNumber string             `json:"order_number"`
+	Executor    pgtype.Text        `json:"executor"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 }
 
 type OrderItem struct {
-	ID            uuid.UUID      `json:"id"`
-	ProductID     string         `json:"product_id"`
-	ExternalID    sql.NullString `json:"external_id"`
-	Status        string         `json:"status"`
-	BasePrice     string         `json:"base_price"`
-	Price         string         `json:"price"`
-	EarnedBonuses sql.NullString `json:"earned_bonuses"`
-	SpentBonuses  sql.NullString `json:"spent_bonuses"`
-	Gift          sql.NullBool   `json:"gift"`
-	OwnerID       sql.NullString `json:"owner_id"`
-	DeliveryID    sql.NullString `json:"delivery_id"`
-	ShopAssistant sql.NullString `json:"shop_assistant"`
-	Warehouse     sql.NullString `json:"warehouse"`
-	OrderID       uuid.UUID      `json:"order_id"`
-	CreatedAt     time.Time      `json:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at"`
+	ID            pgtype.UUID        `json:"id"`
+	ProductID     string             `json:"product_id"`
+	ExternalID    pgtype.Text        `json:"external_id"`
+	Status        string             `json:"status"`
+	BasePrice     pgtype.Numeric     `json:"base_price"`
+	Price         pgtype.Numeric     `json:"price"`
+	EarnedBonuses pgtype.Numeric     `json:"earned_bonuses"`
+	SpentBonuses  pgtype.Numeric     `json:"spent_bonuses"`
+	Gift          pgtype.Bool        `json:"gift"`
+	OwnerID       pgtype.Text        `json:"owner_id"`
+	DeliveryID    pgtype.Text        `json:"delivery_id"`
+	ShopAssistant pgtype.Text        `json:"shop_assistant"`
+	Warehouse     pgtype.Text        `json:"warehouse"`
+	OrderID       pgtype.UUID        `json:"order_id"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+}
+
+type OutboxEvent struct {
+	ID            pgtype.UUID        `json:"id"`
+	AggregateType string             `json:"aggregate_type"`
+	AggregateID   pgtype.UUID        `json:"aggregate_id"`
+	EventType     string             `json:"event_type"`
+	Payload       json.RawMessage    `json:"payload"`
+	Status        string             `json:"status"`
+	RetryCount    pgtype.Int4        `json:"retry_count"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	ProcessedAt   pgtype.Timestamptz `json:"processed_at"`
 }
 
 type Payment struct {
-	ID             uuid.UUID      `json:"id"`
-	OrderID        uuid.UUID      `json:"order_id"`
-	Type           PaymentType    `json:"type"`
-	Sum            string         `json:"sum"`
-	Payed          sql.NullBool   `json:"payed"`
-	Info           sql.NullString `json:"info"`
-	ContractNumber sql.NullString `json:"contract_number"`
-	ExternalID     sql.NullString `json:"external_id"`
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
+	ID             pgtype.UUID        `json:"id"`
+	OrderID        pgtype.UUID        `json:"order_id"`
+	Type           string             `json:"type"`
+	Sum            pgtype.Numeric     `json:"sum"`
+	Payed          pgtype.Bool        `json:"payed"`
+	Info           pgtype.Text        `json:"info"`
+	ContractNumber pgtype.Text        `json:"contract_number"`
+	ExternalID     pgtype.Text        `json:"external_id"`
+	CreditData     json.RawMessage    `json:"credit_data"`
+	CardData       json.RawMessage    `json:"card_data"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }

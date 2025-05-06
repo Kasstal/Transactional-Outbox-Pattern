@@ -11,31 +11,26 @@ import (
 )
 
 type Querier interface {
-	CalculateOrderTotal(ctx context.Context, orderID uuid.UUID) (int64, error)
-	CreateCardPaymentData(ctx context.Context, arg CreateCardPaymentDataParams) (CardPaymentDatum, error)
-	CreateCreditData(ctx context.Context, arg CreateCreditDataParams) (CreditDatum, error)
 	CreateHistory(ctx context.Context, arg CreateHistoryParams) (History, error)
 	CreateOrder(ctx context.Context, arg CreateOrderParams) (Order, error)
 	CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (OrderItem, error)
+	CreateOutboxEvent(ctx context.Context, arg CreateOutboxEventParams) (OutboxEvent, error)
 	CreatePayment(ctx context.Context, arg CreatePaymentParams) (Payment, error)
 	DeleteHistory(ctx context.Context, id int32) error
 	DeleteOrder(ctx context.Context, id uuid.UUID) error
-	GetCardPaymentData(ctx context.Context, paymentID uuid.UUID) (CardPaymentDatum, error)
-	GetCreditData(ctx context.Context, paymentID uuid.UUID) (CreditDatum, error)
+	DeleteOrderItem(ctx context.Context, id uuid.UUID) error
+	DeleteOutboxEvent(ctx context.Context, id uuid.UUID) error
+	DeletePayment(ctx context.Context, id uuid.UUID) error
 	GetHistory(ctx context.Context, id int32) (History, error)
 	GetOrder(ctx context.Context, id uuid.UUID) (Order, error)
-	GetOrderForUpdate(ctx context.Context, id uuid.UUID) (Order, error)
 	GetOrderItem(ctx context.Context, id uuid.UUID) (OrderItem, error)
+	GetOutboxEvent(ctx context.Context, id uuid.UUID) (OutboxEvent, error)
 	GetPayment(ctx context.Context, id uuid.UUID) (Payment, error)
-	GetPaymentsByOrder(ctx context.Context, orderID uuid.UUID) ([]Payment, error)
-	ListHistoryByOrder(ctx context.Context, arg ListHistoryByOrderParams) ([]History, error)
-	ListOrderItems(ctx context.Context, orderID uuid.UUID) ([]OrderItem, error)
-	ListOrders(ctx context.Context, arg ListOrdersParams) ([]Order, error)
-	UpdateCardPaymentData(ctx context.Context, arg UpdateCardPaymentDataParams) (CardPaymentDatum, error)
-	UpdateCreditData(ctx context.Context, arg UpdateCreditDataParams) (CreditDatum, error)
-	UpdateOrderItemStatus(ctx context.Context, arg UpdateOrderItemStatusParams) (OrderItem, error)
-	UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) (Order, error)
-	UpdatePaymentStatus(ctx context.Context, arg UpdatePaymentStatusParams) (Payment, error)
+	UpdateHistory(ctx context.Context, arg UpdateHistoryParams) (History, error)
+	UpdateOrder(ctx context.Context, arg UpdateOrderParams) (Order, error)
+	UpdateOrderItem(ctx context.Context, arg UpdateOrderItemParams) (OrderItem, error)
+	UpdateOutboxEvent(ctx context.Context, arg UpdateOutboxEventParams) (OutboxEvent, error)
+	UpdatePayment(ctx context.Context, arg UpdatePaymentParams) (Payment, error)
 }
 
 var _ Querier = (*Queries)(nil)

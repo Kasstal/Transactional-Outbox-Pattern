@@ -7,36 +7,45 @@ package db
 
 import (
 	"context"
-	"database/sql"
+	"encoding/json"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createPayment = `-- name: CreatePayment :one
 INSERT INTO payments (
-  order_id, type, sum, info, contract_number, external_id
+    id, order_id, type, sum, payed, info,
+    contract_number, external_id, credit_data, card_data
 ) VALUES (
-  $1, $2, $3, $4, $5, $6
-) RETURNING id, order_id, type, sum, payed, info, contract_number, external_id, created_at, updated_at
+             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+         ) RETURNING id, order_id, type, sum, payed, info, contract_number, external_id, credit_data, card_data, created_at, updated_at
 `
 
 type CreatePaymentParams struct {
-	OrderID        uuid.UUID      `json:"order_id"`
-	Type           PaymentType    `json:"type"`
-	Sum            string         `json:"sum"`
-	Info           sql.NullString `json:"info"`
-	ContractNumber sql.NullString `json:"contract_number"`
-	ExternalID     sql.NullString `json:"external_id"`
+	ID             pgtype.UUID     `json:"id"`
+	OrderID        pgtype.UUID     `json:"order_id"`
+	Type           string          `json:"type"`
+	Sum            pgtype.Numeric  `json:"sum"`
+	Payed          pgtype.Bool     `json:"payed"`
+	Info           pgtype.Text     `json:"info"`
+	ContractNumber pgtype.Text     `json:"contract_number"`
+	ExternalID     pgtype.Text     `json:"external_id"`
+	CreditData     json.RawMessage `json:"credit_data"`
+	CardData       json.RawMessage `json:"card_data"`
 }
 
 func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (Payment, error) {
-	row := q.db.QueryRowContext(ctx, createPayment,
+	row := q.db.QueryRow(ctx, createPayment,
+		arg.ID,
 		arg.OrderID,
 		arg.Type,
 		arg.Sum,
+		arg.Payed,
 		arg.Info,
 		arg.ContractNumber,
 		arg.ExternalID,
+		arg.CreditData,
+		arg.CardData,
 	)
 	var i Payment
 	err := row.Scan(
@@ -48,18 +57,29 @@ func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (P
 		&i.Info,
 		&i.ContractNumber,
 		&i.ExternalID,
+		&i.CreditData,
+		&i.CardData,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const deletePayment = `-- name: DeletePayment :exec
+DELETE FROM payments WHERE id = $1
+`
+
+func (q *Queries) DeletePayment(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deletePayment, id)
+	return err
 }
 
 const getPayment = `-- name: GetPayment :one
-SELECT id, order_id, type, sum, payed, info, contract_number, external_id, created_at, updated_at FROM payments WHERE id = $1 LIMIT 1
+SELECT id, order_id, type, sum, payed, info, contract_number, external_id, credit_data, card_data, created_at, updated_at FROM payments WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetPayment(ctx context.Context, id uuid.UUID) (Payment, error) {
-	row := q.db.QueryRowContext(ctx, getPayment, id)
+func (q *Queries) GetPayment(ctx context.Context, id pgtype.UUID) (Payment, error) {
+	row := q.db.QueryRow(ctx, getPayment, id)
 	var i Payment
 	err := row.Scan(
 		&i.ID,
@@ -70,66 +90,57 @@ func (q *Queries) GetPayment(ctx context.Context, id uuid.UUID) (Payment, error)
 		&i.Info,
 		&i.ContractNumber,
 		&i.ExternalID,
+		&i.CreditData,
+		&i.CardData,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
 }
 
-const getPaymentsByOrder = `-- name: GetPaymentsByOrder :many
-SELECT id, order_id, type, sum, payed, info, contract_number, external_id, created_at, updated_at FROM payments
-WHERE order_id = $1
-ORDER BY created_at DESC
-`
-
-func (q *Queries) GetPaymentsByOrder(ctx context.Context, orderID uuid.UUID) ([]Payment, error) {
-	rows, err := q.db.QueryContext(ctx, getPaymentsByOrder, orderID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Payment{}
-	for rows.Next() {
-		var i Payment
-		if err := rows.Scan(
-			&i.ID,
-			&i.OrderID,
-			&i.Type,
-			&i.Sum,
-			&i.Payed,
-			&i.Info,
-			&i.ContractNumber,
-			&i.ExternalID,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const updatePaymentStatus = `-- name: UpdatePaymentStatus :one
+const updatePayment = `-- name: UpdatePayment :one
 UPDATE payments
-SET payed = $2, updated_at = now()
+SET
+    order_id = $2,
+    type = $3,
+    sum = $4,
+    payed = $5,
+    info = $6,
+    contract_number = $7,
+    external_id = $8,
+    credit_data = $9,
+    card_data = $10,
+    updated_at = now()
 WHERE id = $1
-RETURNING id, order_id, type, sum, payed, info, contract_number, external_id, created_at, updated_at
+    RETURNING id, order_id, type, sum, payed, info, contract_number, external_id, credit_data, card_data, created_at, updated_at
 `
 
-type UpdatePaymentStatusParams struct {
-	ID    uuid.UUID    `json:"id"`
-	Payed sql.NullBool `json:"payed"`
+type UpdatePaymentParams struct {
+	ID             pgtype.UUID     `json:"id"`
+	OrderID        pgtype.UUID     `json:"order_id"`
+	Type           string          `json:"type"`
+	Sum            pgtype.Numeric  `json:"sum"`
+	Payed          pgtype.Bool     `json:"payed"`
+	Info           pgtype.Text     `json:"info"`
+	ContractNumber pgtype.Text     `json:"contract_number"`
+	ExternalID     pgtype.Text     `json:"external_id"`
+	CreditData     json.RawMessage `json:"credit_data"`
+	CardData       json.RawMessage `json:"card_data"`
 }
 
-func (q *Queries) UpdatePaymentStatus(ctx context.Context, arg UpdatePaymentStatusParams) (Payment, error) {
-	row := q.db.QueryRowContext(ctx, updatePaymentStatus, arg.ID, arg.Payed)
+func (q *Queries) UpdatePayment(ctx context.Context, arg UpdatePaymentParams) (Payment, error) {
+	row := q.db.QueryRow(ctx, updatePayment,
+		arg.ID,
+		arg.OrderID,
+		arg.Type,
+		arg.Sum,
+		arg.Payed,
+		arg.Info,
+		arg.ContractNumber,
+		arg.ExternalID,
+		arg.CreditData,
+		arg.CardData,
+	)
 	var i Payment
 	err := row.Scan(
 		&i.ID,
@@ -140,6 +151,8 @@ func (q *Queries) UpdatePaymentStatus(ctx context.Context, arg UpdatePaymentStat
 		&i.Info,
 		&i.ContractNumber,
 		&i.ExternalID,
+		&i.CreditData,
+		&i.CardData,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
