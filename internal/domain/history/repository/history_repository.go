@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"github.com/jackc/pgx/v5/pgtype"
 	db "orders-center/db/sqlc"
 	"orders-center/internal/domain/history/entity"
 )
@@ -21,7 +22,7 @@ func (r *historyRepository) CreateHistory(ctx context.Context, arg CreateHistory
 		OldValue: arg.OldValue,
 		Value:    arg.Value,
 		UserID:   arg.UserID,
-		OrderID:  arg.OrderID,
+		OrderID:  pgtype.UUID{Bytes: arg.OrderID, Valid: true},
 	}
 	history, err := r.q.CreateHistory(ctx, sqlArg)
 	if err != nil {
