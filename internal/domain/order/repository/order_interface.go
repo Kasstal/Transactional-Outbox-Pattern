@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"orders-center/internal/domain/order/entity"
 )

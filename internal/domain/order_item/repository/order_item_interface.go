@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"orders-center/internal/domain/order_item/entity"
 )
@@ -26,4 +27,5 @@ type OrderItemRepository interface {
 	CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (entity.OrderItem, error)
 	GetOrderItem(ctx context.Context, id int32) (entity.OrderItem, error)
 	DeleteOrderItem(ctx context.Context, id int32) error
+	GetOrderItemsByOrderID(ctx context.Context, id uuid.UUID) ([]entity.OrderItem, error)
 }

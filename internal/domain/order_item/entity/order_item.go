@@ -3,6 +3,7 @@ package entity
 import "github.com/google/uuid"
 
 type OrderItem struct {
+	ID            int32
 	ProductID     string
 	ExternalID    string
 	Status        string

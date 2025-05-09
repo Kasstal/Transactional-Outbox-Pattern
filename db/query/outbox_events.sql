@@ -9,7 +9,10 @@ INSERT INTO outbox_events (
 -- name: GetOutboxEvent :one
 SELECT * FROM outbox_events WHERE id = $1 LIMIT 1;
 
--- name: UpdateOutboxEvent :one
+-- name: GetPendingOutboxEvents :many
+SELECT * FROM outbox_events WHERE status = 'pending' LIMIT $1;
+
+-- name: UpdateOutboxEventStatus :one
 UPDATE outbox_events
 SET
     status = $2,

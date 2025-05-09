@@ -61,6 +61,39 @@ func (q *Queries) DeleteHistory(ctx context.Context, id int32) error {
 	return err
 }
 
+const getHistoriesByOrderID = `-- name: GetHistoriesByOrderID :many
+SELECT id, type, type_id, old_value, value, date, user_id, order_id FROM history WHERE order_id = $1
+`
+
+func (q *Queries) GetHistoriesByOrderID(ctx context.Context, orderID pgtype.UUID) ([]History, error) {
+	rows, err := q.db.Query(ctx, getHistoriesByOrderID, orderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []History
+	for rows.Next() {
+		var i History
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.TypeID,
+			&i.OldValue,
+			&i.Value,
+			&i.Date,
+			&i.UserID,
+			&i.OrderID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getHistory = `-- name: GetHistory :one
 SELECT id, type, type_id, old_value, value, date, user_id, order_id FROM history WHERE id = $1 LIMIT 1
 `

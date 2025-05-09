@@ -21,15 +21,19 @@ type Querier interface {
 	DeleteOrderItem(ctx context.Context, id int32) error
 	DeleteOutboxEvent(ctx context.Context, id pgtype.UUID) error
 	DeletePayment(ctx context.Context, id pgtype.UUID) error
+	GetHistoriesByOrderID(ctx context.Context, orderID pgtype.UUID) ([]History, error)
 	GetHistory(ctx context.Context, id int32) (History, error)
 	GetOrder(ctx context.Context, id pgtype.UUID) (Order, error)
 	GetOrderItem(ctx context.Context, id int32) (OrderItem, error)
+	GetOrderItemsByOrderID(ctx context.Context, orderID pgtype.UUID) ([]OrderItem, error)
 	GetOutboxEvent(ctx context.Context, id pgtype.UUID) (OutboxEvent, error)
 	GetPayment(ctx context.Context, id pgtype.UUID) (Payment, error)
+	GetPaymentsByOrderID(ctx context.Context, orderID pgtype.UUID) ([]Payment, error)
+	GetPendingOutboxEvents(ctx context.Context, limit int32) ([]OutboxEvent, error)
 	UpdateHistory(ctx context.Context, arg UpdateHistoryParams) (History, error)
 	UpdateOrder(ctx context.Context, arg UpdateOrderParams) (Order, error)
 	UpdateOrderItem(ctx context.Context, arg UpdateOrderItemParams) (OrderItem, error)
-	UpdateOutboxEvent(ctx context.Context, arg UpdateOutboxEventParams) (OutboxEvent, error)
+	UpdateOutboxEventStatus(ctx context.Context, arg UpdateOutboxEventStatusParams) (OutboxEvent, error)
 	UpdatePayment(ctx context.Context, arg UpdatePaymentParams) (Payment, error)
 }
 

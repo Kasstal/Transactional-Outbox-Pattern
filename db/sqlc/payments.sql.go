@@ -18,7 +18,7 @@ INSERT INTO payments (
     contract_number, external_id, credit_data, card_data
 ) VALUES (
              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
-         ) RETURNING id, order_id, type, sum, payed, info, contract_number, external_id, credit_data, card_data, created_at, updated_at
+         ) RETURNING id, order_id, type, sum, payed, info, contract_number, credit_data, external_id, card_data, created_at, updated_at
 `
 
 type CreatePaymentParams struct {
@@ -28,8 +28,8 @@ type CreatePaymentParams struct {
 	Sum            pgtype.Numeric  `json:"sum"`
 	Payed          pgtype.Bool     `json:"payed"`
 	Info           pgtype.Text     `json:"info"`
-	ContractNumber pgtype.Text     `json:"contract_number"`
-	ExternalID     pgtype.Text     `json:"external_id"`
+	ContractNumber interface{}     `json:"contract_number"`
+	ExternalID     interface{}     `json:"external_id"`
 	CreditData     json.RawMessage `json:"credit_data"`
 	CardData       json.RawMessage `json:"card_data"`
 }
@@ -56,8 +56,8 @@ func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (P
 		&i.Payed,
 		&i.Info,
 		&i.ContractNumber,
-		&i.ExternalID,
 		&i.CreditData,
+		&i.ExternalID,
 		&i.CardData,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -75,7 +75,7 @@ func (q *Queries) DeletePayment(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getPayment = `-- name: GetPayment :one
-SELECT id, order_id, type, sum, payed, info, contract_number, external_id, credit_data, card_data, created_at, updated_at FROM payments WHERE id = $1 LIMIT 1
+SELECT id, order_id, type, sum, payed, info, contract_number, credit_data, external_id, card_data, created_at, updated_at FROM payments WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetPayment(ctx context.Context, id pgtype.UUID) (Payment, error) {
@@ -89,13 +89,50 @@ func (q *Queries) GetPayment(ctx context.Context, id pgtype.UUID) (Payment, erro
 		&i.Payed,
 		&i.Info,
 		&i.ContractNumber,
-		&i.ExternalID,
 		&i.CreditData,
+		&i.ExternalID,
 		&i.CardData,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const getPaymentsByOrderID = `-- name: GetPaymentsByOrderID :many
+SELECT id, order_id, type, sum, payed, info, contract_number, credit_data, external_id, card_data, created_at, updated_at FROM payments WHERE order_id = $1
+`
+
+func (q *Queries) GetPaymentsByOrderID(ctx context.Context, orderID pgtype.UUID) ([]Payment, error) {
+	rows, err := q.db.Query(ctx, getPaymentsByOrderID, orderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Payment
+	for rows.Next() {
+		var i Payment
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrderID,
+			&i.Type,
+			&i.Sum,
+			&i.Payed,
+			&i.Info,
+			&i.ContractNumber,
+			&i.CreditData,
+			&i.ExternalID,
+			&i.CardData,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updatePayment = `-- name: UpdatePayment :one
@@ -112,7 +149,7 @@ SET
     card_data = $10,
     updated_at = now()
 WHERE id = $1
-    RETURNING id, order_id, type, sum, payed, info, contract_number, external_id, credit_data, card_data, created_at, updated_at
+    RETURNING id, order_id, type, sum, payed, info, contract_number, credit_data, external_id, card_data, created_at, updated_at
 `
 
 type UpdatePaymentParams struct {
@@ -122,8 +159,8 @@ type UpdatePaymentParams struct {
 	Sum            pgtype.Numeric  `json:"sum"`
 	Payed          pgtype.Bool     `json:"payed"`
 	Info           pgtype.Text     `json:"info"`
-	ContractNumber pgtype.Text     `json:"contract_number"`
-	ExternalID     pgtype.Text     `json:"external_id"`
+	ContractNumber interface{}     `json:"contract_number"`
+	ExternalID     interface{}     `json:"external_id"`
 	CreditData     json.RawMessage `json:"credit_data"`
 	CardData       json.RawMessage `json:"card_data"`
 }
@@ -150,8 +187,8 @@ func (q *Queries) UpdatePayment(ctx context.Context, arg UpdatePaymentParams) (P
 		&i.Payed,
 		&i.Info,
 		&i.ContractNumber,
-		&i.ExternalID,
 		&i.CreditData,
+		&i.ExternalID,
 		&i.CardData,
 		&i.CreatedAt,
 		&i.UpdatedAt,

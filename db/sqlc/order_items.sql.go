@@ -114,6 +114,47 @@ func (q *Queries) GetOrderItem(ctx context.Context, id int32) (OrderItem, error)
 	return i, err
 }
 
+const getOrderItemsByOrderID = `-- name: GetOrderItemsByOrderID :many
+SELECT id, product_id, external_id, status, base_price, price, earned_bonuses, spent_bonuses, gift, owner_id, delivery_id, shop_assistant, warehouse, order_id, created_at, updated_at FROM order_items WHERE order_id = $1
+`
+
+func (q *Queries) GetOrderItemsByOrderID(ctx context.Context, orderID pgtype.UUID) ([]OrderItem, error) {
+	rows, err := q.db.Query(ctx, getOrderItemsByOrderID, orderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []OrderItem
+	for rows.Next() {
+		var i OrderItem
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProductID,
+			&i.ExternalID,
+			&i.Status,
+			&i.BasePrice,
+			&i.Price,
+			&i.EarnedBonuses,
+			&i.SpentBonuses,
+			&i.Gift,
+			&i.OwnerID,
+			&i.DeliveryID,
+			&i.ShopAssistant,
+			&i.Warehouse,
+			&i.OrderID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateOrderItem = `-- name: UpdateOrderItem :one
 UPDATE order_items
 SET

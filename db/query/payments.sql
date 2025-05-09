@@ -27,3 +27,6 @@ WHERE id = $1
 
 -- name: DeletePayment :exec
 DELETE FROM payments WHERE id = $1;
+
+-- name: GetPaymentsByOrderID :many
+SELECT * FROM payments WHERE order_id = $1;

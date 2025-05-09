@@ -3,11 +3,11 @@ package entity
 import (
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 )
 
 type Order struct {
-	ID          string    `json:"id"`
+	ID          uuid.UUID `json:"id"`
 	Type        string    `json:"type"`
 	Status      string    `json:"status"`
 	City        string    `json:"city"`

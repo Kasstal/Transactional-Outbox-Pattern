@@ -30,7 +30,7 @@ type Order struct {
 	Price       pgtype.Numeric     `json:"price"`
 	Platform    string             `json:"platform"`
 	GeneralID   pgtype.UUID        `json:"general_id"`
-	OrderNumber string             `json:"order_number"`
+	OrderNumber pgtype.Text        `json:"order_number"`
 	Executor    pgtype.Text        `json:"executor"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
@@ -74,9 +74,9 @@ type Payment struct {
 	Sum            pgtype.Numeric     `json:"sum"`
 	Payed          pgtype.Bool        `json:"payed"`
 	Info           pgtype.Text        `json:"info"`
-	ContractNumber pgtype.Text        `json:"contract_number"`
-	ExternalID     pgtype.Text        `json:"external_id"`
+	ContractNumber interface{}        `json:"contract_number"`
 	CreditData     json.RawMessage    `json:"credit_data"`
+	ExternalID     interface{}        `json:"external_id"`
 	CardData       json.RawMessage    `json:"card_data"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`

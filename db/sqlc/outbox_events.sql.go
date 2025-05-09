@@ -86,7 +86,41 @@ func (q *Queries) GetOutboxEvent(ctx context.Context, id pgtype.UUID) (OutboxEve
 	return i, err
 }
 
-const updateOutboxEvent = `-- name: UpdateOutboxEvent :one
+const getPendingOutboxEvents = `-- name: GetPendingOutboxEvents :many
+SELECT id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, created_at, processed_at FROM outbox_events WHERE status = 'pending' LIMIT $1
+`
+
+func (q *Queries) GetPendingOutboxEvents(ctx context.Context, limit int32) ([]OutboxEvent, error) {
+	rows, err := q.db.Query(ctx, getPendingOutboxEvents, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []OutboxEvent
+	for rows.Next() {
+		var i OutboxEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.AggregateType,
+			&i.AggregateID,
+			&i.EventType,
+			&i.Payload,
+			&i.Status,
+			&i.RetryCount,
+			&i.CreatedAt,
+			&i.ProcessedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateOutboxEventStatus = `-- name: UpdateOutboxEventStatus :one
 UPDATE outbox_events
 SET
     status = $2,
@@ -97,15 +131,15 @@ WHERE id = $1
     RETURNING id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, created_at, processed_at
 `
 
-type UpdateOutboxEventParams struct {
+type UpdateOutboxEventStatusParams struct {
 	ID         pgtype.UUID     `json:"id"`
 	Status     string          `json:"status"`
 	RetryCount pgtype.Int4     `json:"retry_count"`
 	Payload    json.RawMessage `json:"payload"`
 }
 
-func (q *Queries) UpdateOutboxEvent(ctx context.Context, arg UpdateOutboxEventParams) (OutboxEvent, error) {
-	row := q.db.QueryRow(ctx, updateOutboxEvent,
+func (q *Queries) UpdateOutboxEventStatus(ctx context.Context, arg UpdateOutboxEventStatusParams) (OutboxEvent, error) {
+	row := q.db.QueryRow(ctx, updateOutboxEventStatus,
 		arg.ID,
 		arg.Status,
 		arg.RetryCount,

@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"orders-center/internal/domain/payment/entity"
 )
@@ -25,4 +25,5 @@ type PaymentRepository interface {
 	CreatePayment(ctx context.Context, arg CreatePaymentParams) (entity.OrderPayment, error)
 	GetPayment(ctx context.Context, id uuid.UUID) (entity.OrderPayment, error)
 	DeletePayment(ctx context.Context, id uuid.UUID) error
+	GetPaymentsByOrderID(ctx context.Context, orderID uuid.UUID) ([]entity.OrderPayment, error)
 }

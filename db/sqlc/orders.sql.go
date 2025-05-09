@@ -29,7 +29,7 @@ type CreateOrderParams struct {
 	Price       pgtype.Numeric `json:"price"`
 	Platform    string         `json:"platform"`
 	GeneralID   pgtype.UUID    `json:"general_id"`
-	OrderNumber string         `json:"order_number"`
+	OrderNumber pgtype.Text    `json:"order_number"`
 	Executor    pgtype.Text    `json:"executor"`
 }
 
@@ -123,7 +123,7 @@ type UpdateOrderParams struct {
 	Price       pgtype.Numeric `json:"price"`
 	Platform    string         `json:"platform"`
 	GeneralID   pgtype.UUID    `json:"general_id"`
-	OrderNumber string         `json:"order_number"`
+	OrderNumber pgtype.Text    `json:"order_number"`
 	Executor    pgtype.Text    `json:"executor"`
 }
 

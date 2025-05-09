@@ -1,4 +1,4 @@
-package order_full_service
+package entity
 
 import (
 	history "orders-center/internal/domain/history/entity"
@@ -11,5 +11,5 @@ type OrderFull struct {
 	Order    order.Order            `json:"order"`
 	Items    []orderItem.OrderItem  `json:"items"`
 	Payments []payment.OrderPayment `json:"payments"`
-	History  history.History        `json:"history"`
+	History  []history.History      `json:"history"`
 }

@@ -2,11 +2,11 @@ package repository
 
 import (
 	"context"
-	"fmt"
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	db "orders-center/db/sqlc"
 	"orders-center/internal/domain/order/entity"
+	"orders-center/internal/utils"
 )
 
 type orderRepository struct {
@@ -16,6 +16,7 @@ type orderRepository struct {
 func NewOrderRepository(q db.Queries) OrderRepository {
 	return &orderRepository{q: q}
 }
+
 func (r *orderRepository) CreateOrder(ctx context.Context, arg CreateOrderParams) (entity.Order, error) {
 	sqlArg := db.CreateOrderParams{
 		ID:          pgtype.UUID{Bytes: arg.ID, Valid: true},
@@ -26,7 +27,7 @@ func (r *orderRepository) CreateOrder(ctx context.Context, arg CreateOrderParams
 		Price:       arg.Price,
 		Platform:    arg.Platform,
 		GeneralID:   arg.GeneralID,
-		OrderNumber: arg.OrderNumber,
+		OrderNumber: utils.ToText(arg.OrderNumber),
 		Executor:    arg.Executor,
 	}
 	order, err := r.q.CreateOrder(ctx, sqlArg)
@@ -38,7 +39,7 @@ func (r *orderRepository) CreateOrder(ctx context.Context, arg CreateOrderParams
 		return entity.Order{}, err
 	}
 	orderEntity := entity.Order{
-		ID:          fmt.Sprint(order.ID),
+		ID:          order.ID.Bytes,
 		Type:        order.Type,
 		Status:      order.Status,
 		City:        order.City,
@@ -46,7 +47,7 @@ func (r *orderRepository) CreateOrder(ctx context.Context, arg CreateOrderParams
 		Price:       price.Float64,
 		Platform:    order.Platform,
 		GeneralID:   order.GeneralID.Bytes,
-		OrderNumber: order.OrderNumber,
+		OrderNumber: order.OrderNumber.String,
 		Executor:    order.Executor.String,
 		CreatedAt:   order.CreatedAt.Time,
 		UpdatedAt:   order.UpdatedAt.Time,
@@ -63,7 +64,7 @@ func (r *orderRepository) GetOrder(ctx context.Context, id uuid.UUID) (entity.Or
 		return entity.Order{}, err
 	}
 	orderEntity := entity.Order{
-		ID:          fmt.Sprint(order.ID),
+		ID:          order.ID.Bytes,
 		Type:        order.Type,
 		Status:      order.Status,
 		City:        order.City,
@@ -71,7 +72,7 @@ func (r *orderRepository) GetOrder(ctx context.Context, id uuid.UUID) (entity.Or
 		Price:       price.Float64,
 		Platform:    order.Platform,
 		GeneralID:   order.GeneralID.Bytes,
-		OrderNumber: order.OrderNumber,
+		OrderNumber: order.OrderNumber.String,
 		Executor:    order.Executor.String,
 		CreatedAt:   order.CreatedAt.Time,
 		UpdatedAt:   order.UpdatedAt.Time,

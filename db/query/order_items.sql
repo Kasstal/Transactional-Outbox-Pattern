@@ -31,3 +31,6 @@ WHERE id = $1
 
 -- name: DeleteOrderItem :exec
 DELETE FROM order_items WHERE id = $1;
+
+-- name: GetOrderItemsByOrderID :many
+SELECT * FROM order_items WHERE order_id = $1;

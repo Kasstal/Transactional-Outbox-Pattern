@@ -2,14 +2,62 @@ package repository
 
 import (
 	"context"
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	db "orders-center/db/sqlc"
 	"orders-center/internal/domain/payment/entity"
+	"orders-center/internal/utils"
 )
 
 type paymentRepository struct {
 	q db.Queries
+}
+
+func newPaymentRepository(q db.Queries) PaymentRepository {
+	return &paymentRepository{q: q}
+}
+
+func (r *paymentRepository) GetPaymentsByOrderID(ctx context.Context, orderID uuid.UUID) ([]entity.OrderPayment, error) {
+	payments, err := r.q.GetPaymentsByOrderID(ctx, utils.ToUUID(orderID))
+	if err != nil {
+		return nil, err
+	}
+	paymentsEntity := make([]entity.OrderPayment, len(payments))
+	for _, payment := range payments {
+		if err != nil {
+			return []entity.OrderPayment{}, err
+		}
+		sum, err := payment.Sum.Float64Value()
+		if err != nil {
+			return []entity.OrderPayment{}, err
+		}
+		creditData, err := entity.GetCreditData(payment.CreditData)
+		if err != nil {
+			return []entity.OrderPayment{}, err
+		}
+
+		cardPaymentData, err := entity.GetCardPaymentData(payment.CardData)
+		if err != nil {
+			return []entity.OrderPayment{}, err
+		}
+		paymentType, err := entity.GetPaymentType(payment.Type)
+		if err != nil {
+			return []entity.OrderPayment{}, err
+		}
+		paymentEntity := entity.OrderPayment{
+			ID:              payment.ID.Bytes,
+			OrderID:         payment.OrderID.Bytes,
+			Type:            paymentType,
+			Sum:             sum.Float64,
+			Payed:           payment.Payed.Bool,
+			Info:            payment.Info.String,
+			ContractNumber:  payment.ContractNumber.(string),
+			ExternalID:      payment.ExternalID.(string),
+			CreditData:      creditData,
+			CardPaymentData: cardPaymentData,
+		}
+		paymentsEntity = append(paymentsEntity, paymentEntity)
+	}
 }
 
 func (r *paymentRepository) CreatePayment(ctx context.Context, arg CreatePaymentParams) (entity.OrderPayment, error) {
@@ -54,8 +102,8 @@ func (r *paymentRepository) CreatePayment(ctx context.Context, arg CreatePayment
 		Sum:             sum.Float64,
 		Payed:           payment.Payed.Bool,
 		Info:            payment.Info.String,
-		ContractNumber:  payment.ContractNumber.String,
-		ExternalID:      payment.ExternalID.String,
+		ContractNumber:  payment.ContractNumber.(string),
+		ExternalID:      payment.ExternalID.(string),
 		CreditData:      creditData,
 		CardPaymentData: cardPaymentData,
 	}
@@ -90,8 +138,8 @@ func (r *paymentRepository) GetPayment(ctx context.Context, id uuid.UUID) (entit
 		Sum:             sum.Float64,
 		Payed:           payment.Payed.Bool,
 		Info:            payment.Info.String,
-		ContractNumber:  payment.ContractNumber.String,
-		ExternalID:      payment.ExternalID.String,
+		ContractNumber:  payment.ContractNumber.(string),
+		ExternalID:      payment.ExternalID.(string),
 		CreditData:      creditData,
 		CardPaymentData: cardPaymentData,
 	}

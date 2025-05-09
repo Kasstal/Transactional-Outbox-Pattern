@@ -22,3 +22,6 @@ WHERE id = $1
 
 -- name: DeleteHistory :exec
 DELETE FROM history WHERE id = $1;
+
+-- name: GetHistoriesByOrderID :many
+SELECT * FROM history WHERE order_id = $1;

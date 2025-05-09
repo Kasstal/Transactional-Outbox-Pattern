@@ -39,9 +39,9 @@ CREATE TABLE "payments" (
                             "sum" decimal(12,2) NOT NULL,
                             "payed" boolean DEFAULT false,
                             "info" text,
-                            "contract_number" varchar(50),
-                            "external_id" varchar(50),
-                            "credit_data" jsonb,
+                            "contract_number" har(50),
+                            "credit_data" jsonvarchar(50),
+                            "external_id" varcb,
                             "card_data" jsonb,
                             "created_at" timestamptz NOT NULL DEFAULT (now()),
                             "updated_at" timestamptz NOT NULL DEFAULT (now())
