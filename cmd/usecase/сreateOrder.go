@@ -3,13 +3,18 @@ package usecase
 import (
 	"context"
 	"encoding/json"
-	"github.com/jackc/pgx/v5"
 	"orders-center/cmd/order_full/entity"
 	transactional "orders-center/cmd/transactional"
+	db "orders-center/db/sqlc"
+	historyRepo "orders-center/internal/domain/history/repository"
 	historyService "orders-center/internal/domain/history/service"
+	orderRepo "orders-center/internal/domain/order/repository"
 	orderService "orders-center/internal/domain/order/service"
+	itemRepo "orders-center/internal/domain/order_item/repository"
 	itemService "orders-center/internal/domain/order_item/service"
+	outboxRepo "orders-center/internal/domain/outbox/repository"
 	outboxService "orders-center/internal/domain/outbox/service"
+	paymentRepo "orders-center/internal/domain/payment/repository"
 	paymentService "orders-center/internal/domain/payment/service"
 )
 
@@ -23,26 +28,38 @@ type CreateOrderUseCase struct {
 }
 
 func NewCreateOrderUseCase(
-	orderService orderService.OrderService,
-	itemService itemService.OrderItemService,
-	paymentService paymentService.PaymentService,
-	historyService historyService.HistoryService,
-	outboxService outboxService.OutboxService,
+	/*orderService orderService.OrderService,
+	  itemService itemService.OrderItemService,
+	  paymentService paymentService.PaymentService,
+	  historyService historyService.HistoryService,
+	  outboxService outboxService.OutboxService,*/
 	txService *transactional.TransactionService,
 ) *CreateOrderUseCase {
 	return &CreateOrderUseCase{
-		orderService:   orderService,
+		/*orderService:   orderService,
 		itemService:    itemService,
 		paymentService: paymentService,
 		historyService: historyService,
-		outboxService:  outboxService,
-		txService:      txService,
+		outboxService:  outboxService,*/
+		txService: txService,
 	}
 }
 
 func (s *CreateOrderUseCase) Create(ctx context.Context, orderFull entity.OrderFull) error {
 
-	err := s.txService.ExecTx(ctx, func(tx pgx.Tx) error {
+	err := s.txService.ExecTx(ctx, func(q *db.Queries) error {
+
+		query := q
+		orderRepo := orderRepo.NewOrderRepository(query)
+		itemRepo := itemRepo.NewOrderItemRepository(query)
+		paymentRepo := paymentRepo.NewPaymentRepository(query)
+		historyRepo := historyRepo.NewHistoryRepository(query)
+		outboxRepo := outboxRepo.NewOutboxRepository(query)
+		s.orderService = orderService.NewOrderService(orderRepo)
+		s.itemService = itemService.NewOrderItemService(itemRepo)
+		s.paymentService = paymentService.NewPaymentService(paymentRepo)
+		s.historyService = historyService.NewHistoryService(historyRepo)
+		s.outboxService = outboxService.NewOutboxService(outboxRepo)
 
 		if _, err := s.orderService.Create(ctx, orderFull.Order); err != nil {
 			return err
