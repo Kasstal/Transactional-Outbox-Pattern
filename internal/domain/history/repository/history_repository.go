@@ -5,19 +5,29 @@ import (
 	"fmt"
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	db "orders-center/db/sqlc"
 	"orders-center/internal/domain/history/entity"
+	transactional "orders-center/internal/service/transactional"
 )
 
 type historyRepository struct {
-	q db.Querier
+	pool *pgxpool.Pool
 }
 
-func NewHistoryRepository(q db.Querier) HistoryRepository {
-	return &historyRepository{q: q}
+func NewHistoryRepository(pool *pgxpool.Pool) HistoryRepository {
+	return &historyRepository{pool: pool}
 }
 
 func (r *historyRepository) CreateHistory(ctx context.Context, arg CreateHistoryParams) (entity.History, error) {
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
 	sqlArg := db.CreateHistoryParams{
 
 		Type:     arg.Type,
@@ -27,7 +37,7 @@ func (r *historyRepository) CreateHistory(ctx context.Context, arg CreateHistory
 		UserID:   arg.UserID,
 		OrderID:  pgtype.UUID{Bytes: arg.OrderID, Valid: true},
 	}
-	history, err := r.q.CreateHistory(ctx, sqlArg)
+	history, err := query.CreateHistory(ctx, sqlArg)
 	if err != nil {
 		return entity.History{}, err
 	}
@@ -42,7 +52,14 @@ func (r *historyRepository) CreateHistory(ctx context.Context, arg CreateHistory
 	}, nil
 }
 func (r *historyRepository) GetHistory(ctx context.Context, id int32) (entity.History, error) {
-	history, err := r.q.GetHistory(ctx, id)
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+	history, err := query.GetHistory(ctx, id)
 	if err != nil {
 		return entity.History{}, err
 	}
@@ -57,11 +74,28 @@ func (r *historyRepository) GetHistory(ctx context.Context, id int32) (entity.Hi
 	}, nil
 }
 func (r *historyRepository) DeleteHistory(ctx context.Context, id int32) error {
-	return r.q.DeleteHistory(ctx, id)
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
+	return query.DeleteHistory(ctx, id)
 }
 
 func (r *historyRepository) GetHistoriesByOrderID(ctx context.Context, orderID uuid.UUID) ([]entity.History, error) {
-	histories, err := r.q.GetHistoriesByOrderID(ctx, pgtype.UUID{Bytes: orderID, Valid: true})
+
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
+	histories, err := query.GetHistoriesByOrderID(ctx, pgtype.UUID{Bytes: orderID, Valid: true})
 	if len(histories) == 0 {
 		return []entity.History{}, fmt.Errorf("no history records with order_id = %d", orderID)
 	}

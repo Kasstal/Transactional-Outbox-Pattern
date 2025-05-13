@@ -4,21 +4,31 @@ import (
 	"context"
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	db "orders-center/db/sqlc"
 	"orders-center/internal/domain/payment/entity"
+	transactional "orders-center/internal/service/transactional"
 	"orders-center/internal/utils"
 )
 
 type paymentRepository struct {
-	q *db.Queries
+	pool *pgxpool.Pool
 }
 
-func NewPaymentRepository(q *db.Queries) PaymentRepository {
-	return &paymentRepository{q: q}
+func NewPaymentRepository(pool *pgxpool.Pool) PaymentRepository {
+	return &paymentRepository{pool: pool}
 }
 
 func (r *paymentRepository) GetPaymentsByOrderID(ctx context.Context, orderID uuid.UUID) ([]entity.OrderPayment, error) {
-	payments, err := r.q.GetPaymentsByOrderID(ctx, utils.ToUUID(orderID))
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
+	payments, err := query.GetPaymentsByOrderID(ctx, utils.ToUUID(orderID))
 	if err != nil {
 		return nil, err
 	}
@@ -63,6 +73,14 @@ func (r *paymentRepository) GetPaymentsByOrderID(ctx context.Context, orderID uu
 }
 
 func (r *paymentRepository) CreatePayment(ctx context.Context, arg CreatePaymentParams) (entity.OrderPayment, error) {
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
 	sqlcArg := db.CreatePaymentParams{
 		OrderID:        arg.OrderID,
 		Type:           arg.Type,
@@ -75,7 +93,7 @@ func (r *paymentRepository) CreatePayment(ctx context.Context, arg CreatePayment
 		CardData:       arg.CardData,
 	}
 
-	payment, err := r.q.CreatePayment(ctx, sqlcArg)
+	payment, err := query.CreatePayment(ctx, sqlcArg)
 	if err != nil {
 		return entity.OrderPayment{}, err
 	}
@@ -111,7 +129,15 @@ func (r *paymentRepository) CreatePayment(ctx context.Context, arg CreatePayment
 	return paymentEntity, nil
 }
 func (r *paymentRepository) GetPayment(ctx context.Context, id uuid.UUID) (entity.OrderPayment, error) {
-	payment, err := r.q.GetPayment(ctx, pgtype.UUID{Bytes: id})
+
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+	payment, err := query.GetPayment(ctx, pgtype.UUID{Bytes: id})
 	if err != nil {
 		return entity.OrderPayment{}, err
 	}
@@ -147,5 +173,13 @@ func (r *paymentRepository) GetPayment(ctx context.Context, id uuid.UUID) (entit
 	return paymentEntity, nil
 }
 func (r *paymentRepository) DeletePayment(ctx context.Context, id uuid.UUID) error {
-	return r.q.DeletePayment(ctx, pgtype.UUID{Bytes: id})
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
+	return query.DeletePayment(ctx, pgtype.UUID{Bytes: id})
 }

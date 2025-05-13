@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"github.com/gofrs/uuid"
 	"math/rand"
-	orderFull "orders-center/cmd/order_full/entity"
 	ordHistory "orders-center/internal/domain/history/entity"
 	order "orders-center/internal/domain/order/entity"
 	orderItem "orders-center/internal/domain/order_item/entity"
 	payment "orders-center/internal/domain/payment/entity"
+	orderFull "orders-center/internal/service/order_full/entity"
 
 	"time"
 )

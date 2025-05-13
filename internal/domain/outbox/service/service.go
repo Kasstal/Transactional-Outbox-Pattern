@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"github.com/gofrs/uuid"
 	"log"
-	db "orders-center/db/sqlc"
 	"orders-center/internal/domain/outbox/entity"
 	"orders-center/internal/domain/outbox/repository"
 	"time"
@@ -27,13 +26,7 @@ type outboxService struct {
 	repo repository.OutboxRepository
 }
 
-/*func NewOutboxService(repo repository.OutboxRepository) OutboxService {
-	return &outboxService{repo: repo}
-}*/
-
-func NewOutboxService(q *db.Queries) OutboxService {
-
-	repo := repository.NewOutboxRepository(q)
+func NewOutboxService(repo repository.OutboxRepository) OutboxService {
 	return &outboxService{repo: repo}
 }
 

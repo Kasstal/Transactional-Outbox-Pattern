@@ -3,21 +3,31 @@ package repository
 import (
 	"context"
 	"github.com/gofrs/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	db "orders-center/db/sqlc"
 	"orders-center/internal/domain/order_item/entity"
+	transactional "orders-center/internal/service/transactional"
 	"orders-center/internal/utils"
 )
 
 type orderItemRepository struct {
-	q *db.Queries
+	pool *pgxpool.Pool
 }
 
-func NewOrderItemRepository(q *db.Queries) OrderItemRepository {
-	return &orderItemRepository{q: q}
+func NewOrderItemRepository(pool *pgxpool.Pool) OrderItemRepository {
+	return &orderItemRepository{pool: pool}
 }
 
 func (r *orderItemRepository) GetOrderItemsByOrderID(ctx context.Context, id uuid.UUID) ([]entity.OrderItem, error) {
-	orderItems, err := r.q.GetOrderItemsByOrderID(ctx, utils.ToUUID(id))
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
+	orderItems, err := query.GetOrderItemsByOrderID(ctx, utils.ToUUID(id))
 	if err != nil {
 		return nil, err
 	}
@@ -66,6 +76,14 @@ func (r *orderItemRepository) GetOrderItemsByOrderID(ctx context.Context, id uui
 }
 
 func (r *orderItemRepository) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (entity.OrderItem, error) {
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
 	sqlArg := db.CreateOrderItemParams{
 		ProductID:     arg.ProductID,
 		ExternalID:    arg.ExternalID,
@@ -81,7 +99,7 @@ func (r *orderItemRepository) CreateOrderItem(ctx context.Context, arg CreateOrd
 		Warehouse:     arg.Warehouse,
 		OrderID:       arg.OrderID,
 	}
-	orderItem, err := r.q.CreateOrderItem(ctx, sqlArg)
+	orderItem, err := query.CreateOrderItem(ctx, sqlArg)
 	if err != nil {
 		return entity.OrderItem{}, err
 	}
@@ -125,7 +143,15 @@ func (r *orderItemRepository) CreateOrderItem(ctx context.Context, arg CreateOrd
 	return orderEntity, nil
 }
 func (r *orderItemRepository) GetOrderItem(ctx context.Context, id int32) (entity.OrderItem, error) {
-	orderItem, err := r.q.GetOrderItem(ctx, id)
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
+	orderItem, err := query.GetOrderItem(ctx, id)
 
 	if err != nil {
 		return entity.OrderItem{}, err
@@ -170,5 +196,12 @@ func (r *orderItemRepository) GetOrderItem(ctx context.Context, id int32) (entit
 
 }
 func (r *orderItemRepository) DeleteOrderItem(ctx context.Context, id int32) error {
-	return r.q.DeleteOrderItem(ctx, id)
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+	return query.DeleteOrderItem(ctx, id)
 }

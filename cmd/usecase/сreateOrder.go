@@ -4,15 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"orders-center/cmd/order_full/entity"
-	transactional "orders-center/cmd/transactional"
-	db "orders-center/db/sqlc"
 	historyService "orders-center/internal/domain/history/service"
 	orderService "orders-center/internal/domain/order/service"
 	itemService "orders-center/internal/domain/order_item/service"
 	outboxSvc "orders-center/internal/domain/outbox/service"
 	paymentService "orders-center/internal/domain/payment/service"
+	"orders-center/internal/service/order_full/entity"
+	transactional "orders-center/internal/service/transactional"
 )
+
+type UseCase interface {
+	Create(ctx context.Context, orderFull entity.OrderFull) error
+}
 
 type CreateOrderUseCase struct {
 	orderService   orderService.OrderService
@@ -20,58 +23,53 @@ type CreateOrderUseCase struct {
 	paymentService paymentService.PaymentService
 	historyService historyService.HistoryService
 	outboxService  outboxSvc.OutboxService
-	txService      *transactional.TransactionService
+	txService      transactional.Transactional
 }
 
 func NewCreateOrderUseCase(
-	/*orderService orderService.OrderService,
-	  itemService itemService.OrderItemService,
-	  paymentService paymentService.PaymentService,
-	  historyService historyService.HistoryService,
-	  outboxService outboxService.OutboxService,*/
-	txService *transactional.TransactionService,
-) *CreateOrderUseCase {
+	orderService orderService.OrderService,
+	itemService itemService.OrderItemService,
+	paymentService paymentService.PaymentService,
+	historyService historyService.HistoryService,
+	outboxService outboxSvc.OutboxService,
+	txService transactional.Transactional,
+) UseCase {
 	return &CreateOrderUseCase{
-		/*orderService:   orderService,
+		orderService:   orderService,
 		itemService:    itemService,
 		paymentService: paymentService,
 		historyService: historyService,
-		outboxService:  outboxService,*/
-		txService: txService,
+		outboxService:  outboxService,
+		txService:      txService,
 	}
 }
 
 func (s *CreateOrderUseCase) Create(ctx context.Context, orderFull entity.OrderFull) error {
 
-	err := s.txService.ExecTx(ctx, func(q *db.Queries) error {
+	err := s.txService.ExecTx(ctx, func(ctx context.Context) error {
 
-		orderService := orderService.NewOrderService(q)
-		historyService := historyService.NewHistoryService(q)
-		paymentService := paymentService.NewPaymentService(q)
-		itemService := itemService.NewOrderItemService(q)
-		outboxService := outboxSvc.NewOutboxService(q)
-		if _, err := orderService.Create(ctx, orderFull.Order); err != nil {
+		if _, err := s.orderService.Create(ctx, orderFull.Order); err != nil {
 			log.Println(err)
 			return err
 		}
 
 		for _, item := range orderFull.Items {
 
-			if _, err := itemService.Create(ctx, item); err != nil {
+			if _, err := s.itemService.Create(ctx, item); err != nil {
 				log.Println(err)
 				return err
 			}
 		}
 
 		for _, payment := range orderFull.Payments {
-			if _, err := paymentService.Create(ctx, payment); err != nil {
+			if _, err := s.paymentService.Create(ctx, payment); err != nil {
 				log.Println(err)
 				return err
 			}
 		}
 
 		for _, history := range orderFull.History {
-			if _, err := historyService.Create(ctx, history); err != nil {
+			if _, err := s.historyService.Create(ctx, history); err != nil {
 				log.Println(err)
 				return err
 			}
@@ -86,7 +84,7 @@ func (s *CreateOrderUseCase) Create(ctx context.Context, orderFull entity.OrderF
 			return err
 		}
 		// Добавляем событие в Outbox
-		if err := outboxService.AddNewEvent(ctx, outboxSvc.AddEventParams{
+		if err := s.outboxService.AddNewEvent(ctx, outboxSvc.AddEventParams{
 			AggregateType: "OrderFull",        // Тип агрегата
 			AggregateID:   orderFull.Order.ID, // ID заказа
 			EventType:     "OrderCreated",     // Тип события

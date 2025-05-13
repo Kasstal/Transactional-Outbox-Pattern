@@ -10,6 +10,7 @@ import (
 type Cron interface {
 	Start(ctx context.Context)
 	AddFunc(name string, f func(ctx context.Context) error, interval time.Duration)
+	Stop()
 }
 
 type Scheduler struct {

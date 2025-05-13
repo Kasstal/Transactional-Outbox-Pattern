@@ -4,16 +4,19 @@ import (
 	"context"
 	"fmt"
 	"github.com/gofrs/uuid"
-	"orders-center/cmd/order_full/entity"
-	db "orders-center/db/sqlc"
 	historyService "orders-center/internal/domain/history/service"
 	orderService "orders-center/internal/domain/order/service"
 	itemService "orders-center/internal/domain/order_item/service"
 	outboxService "orders-center/internal/domain/outbox/service"
 	paymentService "orders-center/internal/domain/payment/service"
+	"orders-center/internal/service/order_full/entity"
 )
 
-type OrderFullService struct {
+type OrderFullService interface {
+	GetOrderFull(ctx context.Context, id uuid.UUID) (entity.OrderFull, error)
+}
+
+type OrderFullSvc struct {
 	orderService   orderService.OrderService
 	itemService    itemService.OrderItemService
 	paymentService paymentService.PaymentService
@@ -21,17 +24,21 @@ type OrderFullService struct {
 	outboxService  outboxService.OutboxService
 }
 
-func NewOrderFullService(q *db.Queries) *OrderFullService {
-	return &OrderFullService{
-		orderService:   orderService.NewOrderService(q),
-		itemService:    itemService.NewOrderItemService(q),
-		paymentService: paymentService.NewPaymentService(q),
-		historyService: historyService.NewHistoryService(q),
-		outboxService:  outboxService.NewOutboxService(q),
+func NewOrderFullService(orderService orderService.OrderService,
+	itemService itemService.OrderItemService,
+	paymentService paymentService.PaymentService,
+	historyService historyService.HistoryService,
+	outboxService outboxService.OutboxService) OrderFullService {
+	return &OrderFullSvc{
+		orderService:   orderService,
+		itemService:    itemService,
+		paymentService: paymentService,
+		historyService: historyService,
+		outboxService:  outboxService,
 	}
 }
 
-func (s *OrderFullService) GetOrderFull(ctx context.Context, id uuid.UUID) (entity.OrderFull, error) {
+func (s *OrderFullSvc) GetOrderFull(ctx context.Context, id uuid.UUID) (entity.OrderFull, error) {
 	// Собираем заказ
 	order, err := s.orderService.GetByID(ctx, id)
 	if err != nil {

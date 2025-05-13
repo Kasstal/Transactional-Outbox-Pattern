@@ -4,24 +4,34 @@ import (
 	"context"
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
 	db "orders-center/db/sqlc"
 	"orders-center/internal/domain/outbox/entity"
+	transactional "orders-center/internal/service/transactional"
 	"orders-center/internal/utils"
 )
 
 type outboxRepository struct {
-	q *db.Queries
+	pool *pgxpool.Pool
 }
 
-func NewOutboxRepository(q *db.Queries) OutboxRepository {
+func NewOutboxRepository(pool *pgxpool.Pool) OutboxRepository {
 	return &outboxRepository{
-		q: q,
+		pool: pool,
 	}
 }
 
 func (r *outboxRepository) BatchPendingTasks(ctx context.Context, limit int) ([]entity.OutboxEvent, error) {
-	events, err := r.q.BatchPendingTasks(ctx, int32(limit))
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
+	events, err := query.BatchPendingTasks(ctx, int32(limit))
 
 	if err != nil {
 		return nil, err
@@ -45,8 +55,16 @@ func (r *outboxRepository) BatchPendingTasks(ctx context.Context, limit int) ([]
 }
 
 func (r *outboxRepository) IncrementRetryCount(ctx context.Context, id uuid.UUID) error {
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
 	log.Println("entered outboxrepo")
-	err := r.q.IncrementRetryCount(ctx, utils.ToUUID(id))
+	err := query.IncrementRetryCount(ctx, utils.ToUUID(id))
 	if err == nil {
 		log.Println("increased retry count")
 	}
@@ -54,7 +72,15 @@ func (r *outboxRepository) IncrementRetryCount(ctx context.Context, id uuid.UUID
 }
 
 func (r *outboxRepository) FetchOnePendingForUpdateWithID(ctx context.Context, id uuid.UUID) (entity.OutboxEvent, error) {
-	event, err := r.q.FetchOnePendingForUpdateWithID(ctx, utils.ToUUID(id))
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
+	event, err := query.FetchOnePendingForUpdateWithID(ctx, utils.ToUUID(id))
 	if err != nil {
 		return entity.OutboxEvent{}, err
 	}
@@ -72,7 +98,15 @@ func (r *outboxRepository) FetchOnePendingForUpdateWithID(ctx context.Context, i
 }
 
 func (r *outboxRepository) FetchOnePendingForUpdate(ctx context.Context) (entity.OutboxEvent, error) {
-	event, err := r.q.FetchOnePendingForUpdate(ctx)
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
+	event, err := query.FetchOnePendingForUpdate(ctx)
 	if err != nil {
 		return entity.OutboxEvent{}, err
 	}
@@ -92,6 +126,14 @@ func (r *outboxRepository) FetchOnePendingForUpdate(ctx context.Context) (entity
 
 // Создание нового события в Outbox
 func (r *outboxRepository) CreateEvent(ctx context.Context, event entity.OutboxEvent) (entity.OutboxEvent, error) {
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
 	sqlArg := db.CreateOutboxEventParams{
 		AggregateType: event.AggregateType,
 		AggregateID:   utils.ToUUID(event.AggregateID),
@@ -102,7 +144,7 @@ func (r *outboxRepository) CreateEvent(ctx context.Context, event entity.OutboxE
 	}
 
 	// Вызов SQL-запроса
-	sqlEvent, err := r.q.CreateOutboxEvent(ctx, sqlArg)
+	sqlEvent, err := query.CreateOutboxEvent(ctx, sqlArg)
 	if err != nil {
 		return entity.OutboxEvent{}, err
 	}
@@ -123,7 +165,15 @@ func (r *outboxRepository) CreateEvent(ctx context.Context, event entity.OutboxE
 
 // Получение "pending" событий
 func (r *outboxRepository) GetPendingEvents(ctx context.Context, limit int) ([]entity.OutboxEvent, error) {
-	events, err := r.q.GetPendingOutboxEvents(ctx, int32(limit))
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
+	events, err := query.GetPendingOutboxEvents(ctx, int32(limit))
 	if err != nil {
 		return nil, err
 	}
@@ -149,13 +199,21 @@ func (r *outboxRepository) GetPendingEvents(ctx context.Context, limit int) ([]e
 
 // Обновление статуса события в Outbox
 func (r *outboxRepository) UpdateEventStatus(ctx context.Context, eventID uuid.UUID, status string) (entity.OutboxEvent, error) {
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
 	sqlArg := db.UpdateOutboxEventStatusParams{
 		ID:     utils.ToUUID(eventID),
 		Status: status,
 	}
 
 	// Выполняем SQL-запрос
-	sqlEvent, err := r.q.UpdateOutboxEventStatus(ctx, sqlArg)
+	sqlEvent, err := query.UpdateOutboxEventStatus(ctx, sqlArg)
 	if err != nil {
 		return entity.OutboxEvent{}, err
 	}
@@ -176,6 +234,14 @@ func (r *outboxRepository) UpdateEventStatus(ctx context.Context, eventID uuid.U
 
 // Удаление события из Outbox
 func (r *outboxRepository) DeleteEvent(ctx context.Context, eventID uuid.UUID) error {
-	err := r.q.DeleteOutboxEvent(ctx, pgtype.UUID{Bytes: eventID, Valid: true})
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
+	err := query.DeleteOutboxEvent(ctx, pgtype.UUID{Bytes: eventID, Valid: true})
 	return err
 }

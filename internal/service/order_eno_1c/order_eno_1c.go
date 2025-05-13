@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"orders-center/cmd/cron"
-	orderFullSvc "orders-center/cmd/order_full/entity"
-	orderFullService "orders-center/cmd/order_full/order_full_service"
-	transactional "orders-center/cmd/transactional"
-	db "orders-center/db/sqlc"
+	"orders-center/internal/service/cron"
+	orderFull "orders-center/internal/service/order_full/entity"
+	orderFullService "orders-center/internal/service/order_full/order_full_service"
+	transactional "orders-center/internal/service/transactional"
+
 	outbox "orders-center/internal/domain/outbox/entity"
 	outboxService "orders-center/internal/domain/outbox/service"
 	"sync"
@@ -22,26 +22,28 @@ type OrderEno1c struct {
 	mu                   sync.Mutex
 	cron                 cron.Cron
 	tasks                []outbox.OutboxEvent
-	transactionalService *transactional.TransactionService
+	transactionalService transactional.Transactional
 	outboxService        outboxService.OutboxService
+	orderFullService     orderFullService.OrderFullService
 }
 
-func NewOrderEno1c(cron cron.Cron, transactionalService *transactional.TransactionService, outboxService outboxService.OutboxService) *OrderEno1c {
+func NewOrderEno1c(cron cron.Cron, transactionalService transactional.Transactional, orderFullService orderFullService.OrderFullService, outboxService outboxService.OutboxService) *OrderEno1c {
 	return &OrderEno1c{
 		outboxService:        outboxService,
+		orderFullService:     orderFullService,
 		cron:                 cron,
 		transactionalService: transactionalService,
 	}
 }
 
 func (o *OrderEno1c) Run(ctx context.Context) {
-	o.cron.AddFunc("FETCH BATCH", o.getPendingTasks, 1*time.Second)
-	o.cron.AddFunc("process task", o.processTask, 1*time.Second)
+	o.cron.AddFunc("FETCH BATCH", o.getPendingTasks, 3*time.Second)
+	o.cron.AddFunc("process task", o.processTask, 200*time.Millisecond)
 	o.cron.Start(ctx)
 }
 
 func (o *OrderEno1c) getPendingTasks(ctx context.Context) error {
-	batch, err := o.outboxService.BatchPendingTasks(ctx, 10)
+	batch, err := o.outboxService.BatchPendingTasks(ctx, 5)
 	if err != nil {
 		return err
 	}
@@ -67,12 +69,10 @@ func (o *OrderEno1c) processTask(ctx context.Context) error {
 	id := o.tasks[0].ID
 	log.Println("processing task: ", id)
 	o.mu.Unlock()
-	o.transactionalService.ExecTx(ctx, func(q *db.Queries) error {
+	o.transactionalService.ExecTx(ctx, func(ctx context.Context) error {
 		//imitate work
 
-		outboxService := outboxService.NewOutboxService(q)
-		orderFullService := orderFullService.NewOrderFullService(q)
-		task, err := outboxService.FetchOnePendingForUpdateWithID(ctx, id)
+		task, err := o.outboxService.FetchOnePendingForUpdateWithID(ctx, id)
 		log.Printf("FETCHED TASK : %v", task.ID)
 		if err != nil {
 			log.Println("Error fetching task:", err)
@@ -82,7 +82,7 @@ func (o *OrderEno1c) processTask(ctx context.Context) error {
 			return nil
 		}
 
-		orderFull, err := orderFullService.GetOrderFull(ctx, task.AggregateID)
+		orderFull, err := o.orderFullService.GetOrderFull(ctx, task.AggregateID)
 		log.Printf("Order Full : %v", orderFull.Order.ID)
 		if err != nil {
 			log.Println("Could not get OrderFull: ", err)
@@ -92,14 +92,14 @@ func (o *OrderEno1c) processTask(ctx context.Context) error {
 			log.Printf("Could not Post OrderFull: %v", err)
 		}
 		if err != nil {
-			incrementErr := outboxService.IncrementRetryCount(ctx, task.ID)
+			incrementErr := o.outboxService.IncrementRetryCount(ctx, task.ID)
 			if incrementErr != nil {
-				return fmt.Errorf("Could not increment retry count: ", incrementErr)
+				return fmt.Errorf("Could not increment retry count: %v", incrementErr)
 			}
 			log.Printf("Could not get OrderFull: %v Could not increment: %v", err, incrementErr)
 			return nil
 		}
-		if err = outboxService.MarkEventProcessed(ctx, task.ID); err != nil {
+		if err = o.outboxService.MarkEventProcessed(ctx, task.ID); err != nil {
 			return err
 		}
 
@@ -112,7 +112,7 @@ func (o *OrderEno1c) processTask(ctx context.Context) error {
 	return nil
 }
 
-func PostOrderFull(orderFull orderFullSvc.OrderFull) error {
+func PostOrderFull(orderFull orderFull.OrderFull) error {
 	data, err := json.Marshal(orderFull)
 	if err != nil {
 		return err

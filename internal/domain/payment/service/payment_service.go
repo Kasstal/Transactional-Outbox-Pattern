@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-	db "orders-center/db/sqlc"
 	"orders-center/internal/domain/payment/entity"
 	"orders-center/internal/domain/payment/repository"
 	"orders-center/internal/utils"
@@ -25,9 +24,8 @@ type paymentService struct {
 	return &paymentService{repo: repo}
 }*/
 
-func NewPaymentService(q *db.Queries) PaymentService {
+func NewPaymentService(repo repository.PaymentRepository) PaymentService {
 
-	repo := repository.NewPaymentRepository(q)
 	return &paymentService{repo: repo}
 }
 

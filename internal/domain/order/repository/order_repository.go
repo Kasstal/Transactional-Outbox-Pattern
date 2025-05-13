@@ -4,20 +4,31 @@ import (
 	"context"
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	db "orders-center/db/sqlc"
 	"orders-center/internal/domain/order/entity"
+	transactional "orders-center/internal/service/transactional"
 	"orders-center/internal/utils"
 )
 
 type orderRepository struct {
-	q *db.Queries
+	pool *pgxpool.Pool
 }
 
-func NewOrderRepository(q *db.Queries) OrderRepository {
-	return &orderRepository{q: q}
+func NewOrderRepository(pool *pgxpool.Pool) OrderRepository {
+	return &orderRepository{pool: pool}
 }
 
 func (r *orderRepository) CreateOrder(ctx context.Context, arg CreateOrderParams) (entity.Order, error) {
+
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
 	sqlArg := db.CreateOrderParams{
 		ID:          pgtype.UUID{Bytes: arg.ID, Valid: true},
 		Type:        arg.Type,
@@ -30,7 +41,7 @@ func (r *orderRepository) CreateOrder(ctx context.Context, arg CreateOrderParams
 		OrderNumber: utils.ToText(arg.OrderNumber),
 		Executor:    arg.Executor,
 	}
-	order, err := r.q.CreateOrder(ctx, sqlArg)
+	order, err := query.CreateOrder(ctx, sqlArg)
 	if err != nil {
 		return entity.Order{}, err
 	}
@@ -55,7 +66,14 @@ func (r *orderRepository) CreateOrder(ctx context.Context, arg CreateOrderParams
 	return orderEntity, nil
 }
 func (r *orderRepository) GetOrder(ctx context.Context, id uuid.UUID) (entity.Order, error) {
-	order, err := r.q.GetOrder(ctx, pgtype.UUID{Bytes: id, Valid: true})
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+	order, err := query.GetOrder(ctx, pgtype.UUID{Bytes: id, Valid: true})
 	if err != nil {
 		return entity.Order{}, err
 	}
@@ -80,5 +98,12 @@ func (r *orderRepository) GetOrder(ctx context.Context, id uuid.UUID) (entity.Or
 	return orderEntity, nil
 }
 func (r *orderRepository) DeleteOrder(ctx context.Context, id uuid.UUID) error {
-	return r.q.DeleteOrder(ctx, pgtype.UUID{Bytes: id})
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+	return query.DeleteOrder(ctx, pgtype.UUID{Bytes: id})
 }

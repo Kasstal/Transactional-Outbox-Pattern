@@ -6,19 +6,22 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"net/http"
-	"orders-center/cmd/cron"
-	"orders-center/cmd/order_eno_1c"
-	"orders-center/cmd/order_full/entity"
-	transactional "orders-center/cmd/transactional"
+	"orders-center/cmd/handler"
 	"orders-center/cmd/usecase"
-	db "orders-center/db/sqlc"
-	outboxSvc "orders-center/internal/domain/outbox/service"
-
-	/*historySvc "orders-center/internal/domain/history/service"
+	historyRepo "orders-center/internal/domain/history/repository"
+	historySvc "orders-center/internal/domain/history/service"
+	orderRepo "orders-center/internal/domain/order/repository"
 	orderSvc "orders-center/internal/domain/order/service"
+	itemRepo "orders-center/internal/domain/order_item/repository"
 	itemSvc "orders-center/internal/domain/order_item/service"
+	outboxRepo "orders-center/internal/domain/outbox/repository"
 	outboxSvc "orders-center/internal/domain/outbox/service"
-	paymentSvc "orders-center/internal/domain/payment/service"*/
+	paymentRepo "orders-center/internal/domain/payment/repository"
+	paymentSvc "orders-center/internal/domain/payment/service"
+	"orders-center/internal/service/cron"
+	"orders-center/internal/service/order_eno_1c"
+	orderFullSvc "orders-center/internal/service/order_full/order_full_service"
+	transactional "orders-center/internal/service/transactional"
 	"os"
 	"os/signal"
 	"syscall"
@@ -26,7 +29,7 @@ import (
 )
 
 func main() {
-	// 1. Настроить пул соединений с параметрами
+
 	dsn := "postgres://root:secret@localhost:5432/db?sslmode=disable"
 
 	// Создаем конфигурацию пула соединений
@@ -34,11 +37,11 @@ func main() {
 	if err != nil {
 		panic(fmt.Errorf("db config parse error: %w", err))
 	}
-	// Настроим параметры пула
-	cfg.MaxConns = 200                     // Увеличиваем максимальное количество соединений в пуле
-	cfg.MinConns = 5                       // Минимальное количество соединений
-	cfg.MaxConnIdleTime = 10 * time.Minute // Время бездействия соединений
-	cfg.MaxConnLifetime = 1 * time.Hour    // Максимальное время жизни соединения
+
+	cfg.MaxConns = 100
+	cfg.MinConns = 5
+	cfg.MaxConnIdleTime = 10 * time.Minute
+	cfg.MaxConnLifetime = 1 * time.Hour
 
 	// Создание пула соединений с настроенной конфигурацией
 	pool, err := pgxpool.NewWithConfig(context.Background(), cfg)
@@ -46,26 +49,43 @@ func main() {
 		panic(fmt.Errorf("db connect: %w", err))
 	}
 	defer pool.Close()
-	q := db.New(pool)
-	/*orderService := orderSvc.NewOrderService(q)
-	orderItemService := itemSvc.NewOrderItemService(q)
-	historyService := historySvc.NewHistoryService(q)
-	paymentService := paymentSvc.NewPaymentService(q)*/
-	outboxService := outboxSvc.NewOutboxService(q)
 
-	// 4. Транзакционный сервис
+	orderRepository := orderRepo.NewOrderRepository(pool)
+	historyRepository := historyRepo.NewHistoryRepository(pool)
+	itemRepository := itemRepo.NewOrderItemRepository(pool)
+	outboxRepository := outboxRepo.NewOutboxRepository(pool)
+	paymentRepository := paymentRepo.NewPaymentRepository(pool)
+	orderService := orderSvc.NewOrderService(orderRepository)
+	orderItemService := itemSvc.NewOrderItemService(itemRepository)
+	historyService := historySvc.NewHistoryService(historyRepository)
+	paymentService := paymentSvc.NewPaymentService(paymentRepository)
+	outboxService := outboxSvc.NewOutboxService(outboxRepository)
+
+	//transactional
 	txService := transactional.NewTransactionService(pool)
 
-	// 5. UseCase для создания заказа
+	// Usecase
 	createOrderUC := usecase.NewCreateOrderUseCase(
+		orderService,
+		orderItemService,
+		paymentService,
+		historyService,
+		outboxService,
 		txService,
 	)
 
-	// 7. Cron + order_eno_1c
-	cronScheduler := cron.NewScheduler(6)
+	//orderfull service
+	orderFullService := orderFullSvc.NewOrderFullService(orderService, orderItemService, paymentService, historyService, outboxService)
+
+	//handler
+	orderHandler := handler.NewOrderHandler(createOrderUC)
+
+	// 3. Cron + order_eno_1c
+	cronScheduler := cron.NewScheduler(15)
 	enoService := order_eno_1c.NewOrderEno1c(
 		cronScheduler,
 		txService,
+		orderFullService,
 		outboxService,
 	)
 
@@ -73,25 +93,13 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// 8. Запуск фонового processing
+	// 3. Запуск фонового processing
 	go enoService.Run(ctx)
 
-	// 9. Настройка Gin
 	r := gin.Default()
-	r.POST("/orders", func(c *gin.Context) {
-		var of entity.OrderFull
-		if err := c.ShouldBindJSON(&of); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-		if err := createOrderUC.Create(c.Request.Context(), of); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.Status(http.StatusCreated)
-	})
+	r.POST("/orders", orderHandler.CreateOrderFull)
 
-	// 10. Запуск HTTP-сервера с graceful shutdown
+	// 4. Запуск HTTP-сервера с graceful shutdown
 	srv := &http.Server{
 		Addr:    ":8080",
 		Handler: r,
@@ -103,8 +111,9 @@ func main() {
 			stop()
 		}
 	}()
-	go PostOrderFull(ctx, q)
+	go PostOrderFull(ctx)
 	<-ctx.Done()
+
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	fmt.Println("Shutting down HTTP server…")

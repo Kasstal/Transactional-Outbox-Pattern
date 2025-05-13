@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-	db "orders-center/db/sqlc"
 	"orders-center/internal/domain/order_item/entity"
 	"orders-center/internal/domain/order_item/repository"
 	"orders-center/internal/utils"
@@ -20,8 +19,8 @@ type orderItemService struct {
 	repo repository.OrderItemRepository
 }
 
-func NewOrderItemService(q *db.Queries) OrderItemService {
-	repo := repository.NewOrderItemRepository(q)
+func NewOrderItemService(repo repository.OrderItemRepository) OrderItemService {
+
 	return &orderItemService{repo: repo}
 }
 
