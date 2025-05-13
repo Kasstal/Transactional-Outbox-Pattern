@@ -1,10 +1,10 @@
 -- name: CreateOrderItem :one
 INSERT INTO order_items (
-    id, product_id, external_id, status, base_price,
+    product_id, external_id, status, base_price,
     price, earned_bonuses, spent_bonuses, gift,
     owner_id, delivery_id, shop_assistant, warehouse, order_id
 ) VALUES (
-             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
          ) RETURNING *;
 
 -- name: GetOrderItem :one

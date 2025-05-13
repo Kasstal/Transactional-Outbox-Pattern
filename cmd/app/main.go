@@ -9,20 +9,16 @@ import (
 	"orders-center/cmd/cron"
 	"orders-center/cmd/order_eno_1c"
 	"orders-center/cmd/order_full/entity"
-	orderFullSvc "orders-center/cmd/order_full/order_full_service"
 	transactional "orders-center/cmd/transactional"
 	"orders-center/cmd/usecase"
 	db "orders-center/db/sqlc"
-	historyRepo "orders-center/internal/domain/history/repository"
-	historySvc "orders-center/internal/domain/history/service"
-	orderRepo "orders-center/internal/domain/order/repository"
-	orderSvc "orders-center/internal/domain/order/service"
-	itemRepo "orders-center/internal/domain/order_item/repository"
-	itemSvc "orders-center/internal/domain/order_item/service"
-	outboxRepo "orders-center/internal/domain/outbox/repository"
 	outboxSvc "orders-center/internal/domain/outbox/service"
-	paymentRepo "orders-center/internal/domain/payment/repository"
-	paymentSvc "orders-center/internal/domain/payment/service"
+
+	/*historySvc "orders-center/internal/domain/history/service"
+	orderSvc "orders-center/internal/domain/order/service"
+	itemSvc "orders-center/internal/domain/order_item/service"
+	outboxSvc "orders-center/internal/domain/outbox/service"
+	paymentSvc "orders-center/internal/domain/payment/service"*/
 	"os"
 	"os/signal"
 	"syscall"
@@ -38,7 +34,6 @@ func main() {
 	if err != nil {
 		panic(fmt.Errorf("db config parse error: %w", err))
 	}
-
 	// Настроим параметры пула
 	cfg.MaxConns = 200                     // Увеличиваем максимальное количество соединений в пуле
 	cfg.MinConns = 5                       // Минимальное количество соединений
@@ -51,21 +46,12 @@ func main() {
 		panic(fmt.Errorf("db connect: %w", err))
 	}
 	defer pool.Close()
-
-	queries := db.New(pool)
-	// 2. Репозитории
-	orderRepo := orderRepo.NewOrderRepository(queries)
-	itemRepo := itemRepo.NewOrderItemRepository(queries)
-	paymentRepo := paymentRepo.NewPaymentRepository(queries)
-	historyRepo := historyRepo.NewHistoryRepository(queries)
-	outboxRepo := outboxRepo.NewOutboxRepository(queries)
-
-	// 3. Сервисы доменов
-	orderService := orderSvc.NewOrderService(orderRepo)
-	itemService := itemSvc.NewOrderItemService(itemRepo)
-	paymentService := paymentSvc.NewPaymentService(paymentRepo)
-	historyService := historySvc.NewHistoryService(historyRepo)
-	outboxService := outboxSvc.NewOutboxService(outboxRepo)
+	q := db.New(pool)
+	/*orderService := orderSvc.NewOrderService(q)
+	orderItemService := itemSvc.NewOrderItemService(q)
+	historyService := historySvc.NewHistoryService(q)
+	paymentService := paymentSvc.NewPaymentService(q)*/
+	outboxService := outboxSvc.NewOutboxService(q)
 
 	// 4. Транзакционный сервис
 	txService := transactional.NewTransactionService(pool)
@@ -75,23 +61,12 @@ func main() {
 		txService,
 	)
 
-	// 6. Сервис OrderFull (для сборки заказа по ID)
-	orderFullService := orderFullSvc.NewOrderFullService(
-		orderService,
-		itemService,
-		paymentService,
-		historyService,
-		outboxService,
-		txService,
-	)
-
 	// 7. Cron + order_eno_1c
-	cronScheduler := cron.NewWorkerPoolScheduler(500*time.Millisecond, 5, outboxService)
+	cronScheduler := cron.NewScheduler(6)
 	enoService := order_eno_1c.NewOrderEno1c(
 		cronScheduler,
-		outboxService,
 		txService,
-		orderFullService,
+		outboxService,
 	)
 
 	// ctx для graceful shutdown всех фоновых процессов
@@ -128,7 +103,7 @@ func main() {
 			stop()
 		}
 	}()
-
+	go PostOrderFull(ctx, q)
 	<-ctx.Done()
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

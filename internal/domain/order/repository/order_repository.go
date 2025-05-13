@@ -10,10 +10,10 @@ import (
 )
 
 type orderRepository struct {
-	q db.Queries
+	q *db.Queries
 }
 
-func NewOrderRepository(q db.Queries) OrderRepository {
+func NewOrderRepository(q *db.Queries) OrderRepository {
 	return &orderRepository{q: q}
 }
 
@@ -55,7 +55,7 @@ func (r *orderRepository) CreateOrder(ctx context.Context, arg CreateOrderParams
 	return orderEntity, nil
 }
 func (r *orderRepository) GetOrder(ctx context.Context, id uuid.UUID) (entity.Order, error) {
-	order, err := r.q.GetOrder(ctx, pgtype.UUID{Bytes: id})
+	order, err := r.q.GetOrder(ctx, pgtype.UUID{Bytes: id, Valid: true})
 	if err != nil {
 		return entity.Order{}, err
 	}

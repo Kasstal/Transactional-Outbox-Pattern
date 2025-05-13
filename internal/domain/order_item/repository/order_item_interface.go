@@ -8,7 +8,6 @@ import (
 )
 
 type CreateOrderItemParams struct {
-	ID            int32          `json:"id"`
 	ProductID     string         `json:"product_id"`
 	ExternalID    pgtype.Text    `json:"external_id"`
 	Status        string         `json:"status"`

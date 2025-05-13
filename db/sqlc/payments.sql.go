@@ -14,29 +14,27 @@ import (
 
 const createPayment = `-- name: CreatePayment :one
 INSERT INTO payments (
-    id, order_id, type, sum, payed, info,
+    order_id, type, sum, payed, info,
     contract_number, external_id, credit_data, card_data
 ) VALUES (
-             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+             $1, $2, $3, $4, $5, $6, $7, $8, $9
          ) RETURNING id, order_id, type, sum, payed, info, contract_number, credit_data, external_id, card_data, created_at, updated_at
 `
 
 type CreatePaymentParams struct {
-	ID             pgtype.UUID     `json:"id"`
 	OrderID        pgtype.UUID     `json:"order_id"`
 	Type           string          `json:"type"`
 	Sum            pgtype.Numeric  `json:"sum"`
 	Payed          pgtype.Bool     `json:"payed"`
 	Info           pgtype.Text     `json:"info"`
-	ContractNumber interface{}     `json:"contract_number"`
-	ExternalID     interface{}     `json:"external_id"`
+	ContractNumber pgtype.Text     `json:"contract_number"`
+	ExternalID     pgtype.Text     `json:"external_id"`
 	CreditData     json.RawMessage `json:"credit_data"`
 	CardData       json.RawMessage `json:"card_data"`
 }
 
 func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (Payment, error) {
 	row := q.db.QueryRow(ctx, createPayment,
-		arg.ID,
 		arg.OrderID,
 		arg.Type,
 		arg.Sum,
@@ -159,8 +157,8 @@ type UpdatePaymentParams struct {
 	Sum            pgtype.Numeric  `json:"sum"`
 	Payed          pgtype.Bool     `json:"payed"`
 	Info           pgtype.Text     `json:"info"`
-	ContractNumber interface{}     `json:"contract_number"`
-	ExternalID     interface{}     `json:"external_id"`
+	ContractNumber pgtype.Text     `json:"contract_number"`
+	ExternalID     pgtype.Text     `json:"external_id"`
 	CreditData     json.RawMessage `json:"credit_data"`
 	CardData       json.RawMessage `json:"card_data"`
 }

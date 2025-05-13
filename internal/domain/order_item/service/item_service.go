@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	db "orders-center/db/sqlc"
 	"orders-center/internal/domain/order_item/entity"
 	"orders-center/internal/domain/order_item/repository"
 	"orders-center/internal/utils"
@@ -19,9 +20,14 @@ type orderItemService struct {
 	repo repository.OrderItemRepository
 }
 
-func NewOrderItemService(repo repository.OrderItemRepository) OrderItemService {
+func NewOrderItemService(q *db.Queries) OrderItemService {
+	repo := repository.NewOrderItemRepository(q)
 	return &orderItemService{repo: repo}
 }
+
+/*func NewOrderItemService(repo repository.OrderItemRepository) OrderItemService {
+	return &orderItemService{repo: repo}
+}*/
 
 // Получение OrderItem по ID
 func (s *orderItemService) GetByID(ctx context.Context, id int32) (entity.OrderItem, error) {
@@ -32,7 +38,6 @@ func (s *orderItemService) GetByID(ctx context.Context, id int32) (entity.OrderI
 func (s *orderItemService) Create(ctx context.Context, item entity.OrderItem) (entity.OrderItem, error) {
 	// Преобразуем данные с учетом типов pgx
 	arg := repository.CreateOrderItemParams{
-		ID:            item.ID,
 		ProductID:     item.ProductID,
 		ExternalID:    utils.ToText(item.ExternalID), // Преобразуем ExternalID в pgtype.Text
 		Status:        item.Status,

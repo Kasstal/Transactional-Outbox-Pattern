@@ -23,7 +23,6 @@ func createRandomPayment(t *testing.T) Payment {
 		t.Fatalf("Invalid cardData JSON: %s", cardData)
 	}
 	arg := CreatePaymentParams{
-		ID:             pgtype.UUID{Bytes: randomUUID(), Valid: true},
 		OrderID:        pgtype.UUID{Bytes: order.ID.Bytes, Valid: true},
 		Type:           randomPaymentType(),
 		Sum:            pgtype.Numeric{Int: big.NewInt(randomInt(1000, 100000)), Exp: -2, Valid: true},
@@ -49,7 +48,6 @@ func TestCreatePayment(t *testing.T) {
 	cardData := json.RawMessage(`{"last4": "1234", "system": "visa"}`)
 
 	arg := CreatePaymentParams{
-		ID:             pgtype.UUID{Bytes: randomUUID(), Valid: true},
 		OrderID:        pgtype.UUID{Bytes: order.ID.Bytes, Valid: true},
 		Type:           "credit",
 		Sum:            pgtype.Numeric{Int: big.NewInt(10000), Exp: -2, Valid: true},
@@ -65,7 +63,6 @@ func TestCreatePayment(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, payment)
 
-	require.Equal(t, arg.ID, payment.ID)
 	require.Equal(t, arg.OrderID, payment.OrderID)
 	require.Equal(t, arg.Type, payment.Type)
 	require.Equal(t, arg.Sum, payment.Sum)

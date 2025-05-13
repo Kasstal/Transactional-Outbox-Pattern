@@ -7,16 +7,16 @@ import (
 )
 
 type OrderPayment struct {
-	ID              uuid.UUID
-	OrderID         uuid.UUID
-	Type            PaymentType
-	Sum             float64
-	Payed           bool
-	Info            string
-	CreditData      *CreditData
-	ContractNumber  string
-	CardPaymentData *CardPaymentData
-	ExternalID      string
+	ID              uuid.UUID        `json:"id"`
+	OrderID         uuid.UUID        `json:"order_id"`
+	Type            PaymentType      `json:"type"`
+	Sum             float64          `json:"sum"`
+	Payed           bool             `json:"payed"`
+	Info            string           `json:"info"`
+	CreditData      *CreditData      `json:"credit_data"`
+	ContractNumber  string           `json:"contract_Number"`
+	CardPaymentData *CardPaymentData `json:"card_data"`
+	ExternalID      string           `json:"external_id"`
 }
 
 type PaymentType string

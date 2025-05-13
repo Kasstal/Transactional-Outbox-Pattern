@@ -1,0 +1,53 @@
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = '0010c3b9-722e-4bd2-a937-7987960cdc0d';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = '046c12b2-fcc5-4bf6-8b33-e30a2543d556';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = '20715c85-2048-49df-b62b-b46c6b699ec4';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = '29831cec-fb87-4589-b358-11a902c5bae5';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = '32216447-75d0-4fe1-a973-2ba7272437eb';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = '3473d6d9-d259-457b-a01a-9e8ef352af8c';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = '3bf4e84c-5bb3-4820-b7fe-5086552dd315';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = '3c7997a3-9f00-4c14-8f79-d2366961d815';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = '41aa3ade-0d21-4385-8363-fd6582098bf6';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = '482433f3-e167-445e-a36a-e347dd6827d6';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = '4d541279-57d8-466b-91a4-9caa7f940e02';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = '5086482e-9f9c-4fd1-896c-d3f48f92fcfd';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = '5de1f0ea-8887-412d-b24d-0b796776d2d7';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = '82f2e30a-d474-491a-8fa8-a4fb20936fec';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = '834fd046-bd4c-452e-b23a-a34c00797d12';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = '907db1b5-6efa-458e-9a95-83bb5412fb76';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = '9559015f-3ac0-418b-ab0f-8dbf2babcd8a';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = '98c3c64d-c5b5-408a-acf2-6a46fb744e52';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = 'b8ddd79a-7153-47ab-b3a8-e95d7c5ce018';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = 'be89ccd4-54cf-4fb7-88e2-4ee992cc7762';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = 'c03e7808-2555-4430-a3d5-460e6de55843';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = 'c1020be1-67d9-425d-8abb-fbbcd2bf9c50';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = 'd2c554cd-51f7-409d-803b-4edf96664e39';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = 'd6988eea-e96c-4b86-9927-e40168a71541';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = 'e23dd0e4-4b9c-4b5c-9a16-008b018a352f';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = 'e47ab4a8-2c82-48fa-ad8d-e6a2589c557e';
+
+UPDATE "public"."outbox_events" SET "status" = 'pending' WHERE "id" = 'fe7d627a-01ff-4f8a-8141-9e2f83db1a62';

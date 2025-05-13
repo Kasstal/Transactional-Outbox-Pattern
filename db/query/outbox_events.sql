@@ -1,9 +1,9 @@
 -- name: CreateOutboxEvent :one
 INSERT INTO outbox_events (
-    id, aggregate_type, aggregate_id, event_type,
+    aggregate_type, aggregate_id, event_type,
     payload, status, retry_count
 ) VALUES (
-             $1, $2, $3, $4, $5, $6, $7
+             $1, $2, $3, $4, $5, $6
          ) RETURNING *;
 
 -- name: GetOutboxEvent :one
@@ -15,12 +15,41 @@ SELECT * FROM outbox_events WHERE status = 'pending' LIMIT $1;
 -- name: UpdateOutboxEventStatus :one
 UPDATE outbox_events
 SET
-    status = $2,
-    retry_count = $3,
-    processed_at = CASE WHEN $2 = 'processed' THEN now() ELSE processed_at END,
-    payload = $4
-WHERE id = $1
+    status = @status::varchar(20),
+    processed_at = CASE WHEN @status = 'processed' THEN now() ELSE processed_at END
+WHERE id = sqlc.arg(id)
     RETURNING *;
 
 -- name: DeleteOutboxEvent :exec
 DELETE FROM outbox_events WHERE id = $1;
+
+
+-- name: FetchOnePendingForUpdate :one
+SELECT *
+FROM outbox_events
+WHERE status = 'pending' FOR UPDATE SKIP LOCKED LIMIT 1;
+
+-- name: FetchOnePendingForUpdateWithID :one
+SELECT *
+FROM outbox_events
+WHERE id = $1 FOR UPDATE SKIP LOCKED LIMIT 1;
+
+-- name: BatchPendingTasks :many
+WITH batch AS (
+    SELECT id
+    FROM outbox_events
+    WHERE status = 'pending'
+    LIMIT $1
+    )
+UPDATE outbox_events
+SET status = 'in_progress'
+WHERE id IN (SELECT id FROM batch)
+RETURNING *;
+
+
+
+-- name: IncrementRetryCount :exec
+UPDATE outbox_events
+SET retry_count = retry_count + 1,
+    status = 'pending'
+WHERE id = $1;

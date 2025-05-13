@@ -9,7 +9,6 @@ import (
 )
 
 type CreatePaymentParams struct {
-	ID             pgtype.UUID     `json:"id"`
 	OrderID        pgtype.UUID     `json:"order_id"`
 	Type           string          `json:"type"`
 	Sum            pgtype.Numeric  `json:"sum"`

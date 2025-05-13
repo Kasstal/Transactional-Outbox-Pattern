@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"github.com/gofrs/uuid"
+	db "orders-center/db/sqlc"
 	"orders-center/internal/domain/history/entity"
 	"orders-center/internal/domain/history/repository"
 )
@@ -21,7 +22,13 @@ func (s *historyService) GetHistoriesByOrderId(ctx context.Context, orderId uuid
 	return s.repo.GetHistoriesByOrderID(ctx, orderId)
 }
 
+/*
 func NewHistoryService(repo repository.HistoryRepository) HistoryService {
+	return &historyService{repo: repo}
+}*/
+
+func NewHistoryService(q *db.Queries) HistoryService {
+	repo := repository.NewHistoryRepository(q)
 	return &historyService{repo: repo}
 }
 

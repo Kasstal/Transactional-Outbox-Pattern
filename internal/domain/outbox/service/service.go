@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/gofrs/uuid"
+	"log"
+	db "orders-center/db/sqlc"
 	"orders-center/internal/domain/outbox/entity"
 	"orders-center/internal/domain/outbox/repository"
 	"time"
@@ -15,14 +17,41 @@ type OutboxService interface {
 	MarkEventProcessed(ctx context.Context, eventID uuid.UUID) error
 	UpdateEventStatus(ctx context.Context, eventID uuid.UUID, status string) (entity.OutboxEvent, error)
 	AddNewEvent(ctx context.Context, event AddEventParams) error
+	FetchOnePendingForUpdate(ctx context.Context) (entity.OutboxEvent, error)
+	BatchPendingTasks(ctx context.Context, limit int) ([]entity.OutboxEvent, error)
+	FetchOnePendingForUpdateWithID(ctx context.Context, id uuid.UUID) (entity.OutboxEvent, error)
+	IncrementRetryCount(ctx context.Context, id uuid.UUID) error
 }
 
 type outboxService struct {
 	repo repository.OutboxRepository
 }
 
-func NewOutboxService(repo repository.OutboxRepository) OutboxService {
+/*func NewOutboxService(repo repository.OutboxRepository) OutboxService {
 	return &outboxService{repo: repo}
+}*/
+
+func NewOutboxService(q *db.Queries) OutboxService {
+
+	repo := repository.NewOutboxRepository(q)
+	return &outboxService{repo: repo}
+}
+
+func (s *outboxService) IncrementRetryCount(ctx context.Context, id uuid.UUID) error {
+	log.Println("entered outbox service")
+	return s.repo.IncrementRetryCount(ctx, id)
+}
+
+func (s *outboxService) FetchOnePendingForUpdateWithID(ctx context.Context, id uuid.UUID) (entity.OutboxEvent, error) {
+	return s.repo.FetchOnePendingForUpdateWithID(ctx, id)
+}
+
+func (s *outboxService) BatchPendingTasks(ctx context.Context, limit int) ([]entity.OutboxEvent, error) {
+	return s.repo.BatchPendingTasks(ctx, limit)
+}
+
+func (s *outboxService) FetchOnePendingForUpdate(ctx context.Context) (entity.OutboxEvent, error) {
+	return s.repo.FetchOnePendingForUpdate(ctx)
 }
 
 // Добавление события в Outbox
@@ -30,7 +59,6 @@ func (s *outboxService) AddEvent(ctx context.Context, event entity.OutboxEvent) 
 	event.Status = "pending"
 	event.RetryCount = 0
 	event.CreatedAt = time.Now()
-	event.ID = uuid.Must(uuid.NewV4()) // Генерация уникального ID
 
 	_, err := s.repo.CreateEvent(ctx, event)
 	return err

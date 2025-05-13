@@ -74,9 +74,9 @@ type Payment struct {
 	Sum            pgtype.Numeric     `json:"sum"`
 	Payed          pgtype.Bool        `json:"payed"`
 	Info           pgtype.Text        `json:"info"`
-	ContractNumber interface{}        `json:"contract_number"`
+	ContractNumber pgtype.Text        `json:"contract_number"`
 	CreditData     json.RawMessage    `json:"credit_data"`
-	ExternalID     interface{}        `json:"external_id"`
+	ExternalID     pgtype.Text        `json:"external_id"`
 	CardData       json.RawMessage    `json:"card_data"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`

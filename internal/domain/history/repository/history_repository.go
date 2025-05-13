@@ -10,15 +10,16 @@ import (
 )
 
 type historyRepository struct {
-	q db.Queries
+	q db.Querier
 }
 
-func NewHistoryRepository(q db.Queries) HistoryRepository {
+func NewHistoryRepository(q db.Querier) HistoryRepository {
 	return &historyRepository{q: q}
 }
 
 func (r *historyRepository) CreateHistory(ctx context.Context, arg CreateHistoryParams) (entity.History, error) {
 	sqlArg := db.CreateHistoryParams{
+
 		Type:     arg.Type,
 		TypeID:   arg.TypeID,
 		OldValue: arg.OldValue,

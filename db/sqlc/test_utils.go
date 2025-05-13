@@ -6,6 +6,10 @@ import (
 	"strconv"
 )
 
+func randomString(prefix string) string {
+	return prefix + strconv.Itoa(rand.Intn(1000))
+}
+
 // Вспомогательные функции для генерации случайных данных
 func randomInt(min, max int64) int64 {
 	return min + rand.Int63n(max-min+1)

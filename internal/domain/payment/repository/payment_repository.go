@@ -10,10 +10,10 @@ import (
 )
 
 type paymentRepository struct {
-	q db.Queries
+	q *db.Queries
 }
 
-func newPaymentRepository(q db.Queries) PaymentRepository {
+func NewPaymentRepository(q *db.Queries) PaymentRepository {
 	return &paymentRepository{q: q}
 }
 
@@ -51,18 +51,19 @@ func (r *paymentRepository) GetPaymentsByOrderID(ctx context.Context, orderID uu
 			Sum:             sum.Float64,
 			Payed:           payment.Payed.Bool,
 			Info:            payment.Info.String,
-			ContractNumber:  payment.ContractNumber.(string),
-			ExternalID:      payment.ExternalID.(string),
+			ContractNumber:  payment.ContractNumber.String,
+			ExternalID:      payment.ExternalID.String,
 			CreditData:      creditData,
 			CardPaymentData: cardPaymentData,
 		}
 		paymentsEntity = append(paymentsEntity, paymentEntity)
 	}
+
+	return paymentsEntity, nil
 }
 
 func (r *paymentRepository) CreatePayment(ctx context.Context, arg CreatePaymentParams) (entity.OrderPayment, error) {
 	sqlcArg := db.CreatePaymentParams{
-		ID:             arg.ID,
 		OrderID:        arg.OrderID,
 		Type:           arg.Type,
 		Sum:            arg.Sum,
@@ -102,8 +103,8 @@ func (r *paymentRepository) CreatePayment(ctx context.Context, arg CreatePayment
 		Sum:             sum.Float64,
 		Payed:           payment.Payed.Bool,
 		Info:            payment.Info.String,
-		ContractNumber:  payment.ContractNumber.(string),
-		ExternalID:      payment.ExternalID.(string),
+		ContractNumber:  payment.ContractNumber.String,
+		ExternalID:      payment.ExternalID.String,
 		CreditData:      creditData,
 		CardPaymentData: cardPaymentData,
 	}
@@ -138,8 +139,8 @@ func (r *paymentRepository) GetPayment(ctx context.Context, id uuid.UUID) (entit
 		Sum:             sum.Float64,
 		Payed:           payment.Payed.Bool,
 		Info:            payment.Info.String,
-		ContractNumber:  payment.ContractNumber.(string),
-		ExternalID:      payment.ExternalID.(string),
+		ContractNumber:  payment.ContractNumber.String,
+		ExternalID:      payment.ExternalID.String,
 		CreditData:      creditData,
 		CardPaymentData: cardPaymentData,
 	}

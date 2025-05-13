@@ -11,6 +11,7 @@ import (
 )
 
 type Querier interface {
+	BatchPendingTasks(ctx context.Context, limit int32) ([]OutboxEvent, error)
 	CreateHistory(ctx context.Context, arg CreateHistoryParams) (History, error)
 	CreateOrder(ctx context.Context, arg CreateOrderParams) (Order, error)
 	CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (OrderItem, error)
@@ -21,6 +22,8 @@ type Querier interface {
 	DeleteOrderItem(ctx context.Context, id int32) error
 	DeleteOutboxEvent(ctx context.Context, id pgtype.UUID) error
 	DeletePayment(ctx context.Context, id pgtype.UUID) error
+	FetchOnePendingForUpdate(ctx context.Context) (OutboxEvent, error)
+	FetchOnePendingForUpdateWithID(ctx context.Context, id pgtype.UUID) (OutboxEvent, error)
 	GetHistoriesByOrderID(ctx context.Context, orderID pgtype.UUID) ([]History, error)
 	GetHistory(ctx context.Context, id int32) (History, error)
 	GetOrder(ctx context.Context, id pgtype.UUID) (Order, error)
@@ -30,6 +33,7 @@ type Querier interface {
 	GetPayment(ctx context.Context, id pgtype.UUID) (Payment, error)
 	GetPaymentsByOrderID(ctx context.Context, orderID pgtype.UUID) ([]Payment, error)
 	GetPendingOutboxEvents(ctx context.Context, limit int32) ([]OutboxEvent, error)
+	IncrementRetryCount(ctx context.Context, id pgtype.UUID) error
 	UpdateHistory(ctx context.Context, arg UpdateHistoryParams) (History, error)
 	UpdateOrder(ctx context.Context, arg UpdateOrderParams) (Order, error)
 	UpdateOrderItem(ctx context.Context, arg UpdateOrderItemParams) (OrderItem, error)

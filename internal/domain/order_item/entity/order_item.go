@@ -1,20 +1,20 @@
 package entity
 
-import "github.com/google/uuid"
+import "github.com/gofrs/uuid"
 
 type OrderItem struct {
-	ID            int32
-	ProductID     string
-	ExternalID    string
-	Status        string
-	BasePrice     float64
-	Price         float64
-	EarnedBonuses float64
-	SpentBonuses  float64
-	Gift          bool
-	OwnerID       string
-	DeliveryID    string
-	ShopAssistant string
-	Warehouse     string
-	OrderId       uuid.UUID
+	ID            int32     `json:"id"`
+	ProductID     string    `json:"product_id"`
+	ExternalID    string    `json:"external_id"`
+	Status        string    `json:"status"`
+	BasePrice     float64   `json:"base_price"`
+	Price         float64   `json:"price"`
+	EarnedBonuses float64   `json:"earned_bonuses"`
+	SpentBonuses  float64   `json:"spent_bonuses"`
+	Gift          bool      `json:"gift"`
+	OwnerID       string    `json:"owner_id"`
+	DeliveryID    string    `json:"delivery_id"`
+	ShopAssistant string    `json:"shop_assistant"`
+	Warehouse     string    `json:"warehouse"`
+	OrderId       uuid.UUID `json:"order_id"`
 }

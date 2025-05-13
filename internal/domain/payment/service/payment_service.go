@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	db "orders-center/db/sqlc"
 	"orders-center/internal/domain/payment/entity"
 	"orders-center/internal/domain/payment/repository"
 	"orders-center/internal/utils"
@@ -20,9 +21,16 @@ type paymentService struct {
 	repo repository.PaymentRepository
 }
 
-func NewPaymentService(repo repository.PaymentRepository) PaymentService {
+/*func NewPaymentService(repo repository.PaymentRepository) PaymentService {
+	return &paymentService{repo: repo}
+}*/
+
+func NewPaymentService(q *db.Queries) PaymentService {
+
+	repo := repository.NewPaymentRepository(q)
 	return &paymentService{repo: repo}
 }
+
 func (s *paymentService) GetPaymentsByOrderID(ctx context.Context, id uuid.UUID) ([]entity.OrderPayment, error) {
 	return s.repo.GetPaymentsByOrderID(ctx, id)
 }
@@ -47,7 +55,6 @@ func (s *paymentService) Create(ctx context.Context, payment entity.OrderPayment
 
 	// Преобразуем поля с учетом типов данных
 	arg := repository.CreatePaymentParams{
-		ID:             pgtype.UUID{Bytes: [16]byte(payment.ID.Bytes()), Valid: true},      // Преобразуем UUID в pgtype.UUID
 		OrderID:        pgtype.UUID{Bytes: [16]byte(payment.OrderID.Bytes()), Valid: true}, // Преобразуем OrderID в pgtype.UUID
 		Type:           string(payment.Type),                                               // Преобразуем в строку
 		Sum:            utils.ToNumeric(payment.Sum),                                       // Преобразуем Sum в pgtype.Numeric

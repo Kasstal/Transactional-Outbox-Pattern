@@ -9,10 +9,10 @@ import (
 )
 
 type orderItemRepository struct {
-	q db.Queries
+	q *db.Queries
 }
 
-func newOrderItemRepository(q db.Queries) OrderItemRepository {
+func NewOrderItemRepository(q *db.Queries) OrderItemRepository {
 	return &orderItemRepository{q: q}
 }
 
@@ -67,7 +67,6 @@ func (r *orderItemRepository) GetOrderItemsByOrderID(ctx context.Context, id uui
 
 func (r *orderItemRepository) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (entity.OrderItem, error) {
 	sqlArg := db.CreateOrderItemParams{
-		ID:            arg.ID,
 		ProductID:     arg.ProductID,
 		ExternalID:    arg.ExternalID,
 		Status:        arg.Status,

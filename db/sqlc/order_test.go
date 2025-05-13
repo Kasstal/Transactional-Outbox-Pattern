@@ -5,6 +5,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/require"
 	"math/big"
+	"orders-center/internal/utils"
 	"testing"
 	"time"
 )
@@ -19,7 +20,7 @@ func createRandomOrder(t *testing.T) Order {
 		Price:       pgtype.Numeric{Int: big.NewInt(randomInt(1000, 100000)), Exp: -2, Valid: true},
 		Platform:    randomPlatform(),
 		GeneralID:   pgtype.UUID{Bytes: randomUUID(), Valid: true},
-		OrderNumber: randomOrderNumber(),
+		OrderNumber: utils.ToText(randomOrderNumber()),
 		Executor:    pgtype.Text{String: randomUserID(), Valid: true},
 	}
 
@@ -41,7 +42,7 @@ func TestCreateOrder(t *testing.T) {
 		Price:       pgtype.Numeric{Int: big.NewInt(10000), Exp: -2, Valid: true},
 		Platform:    "web",
 		GeneralID:   pgtype.UUID{Bytes: [16]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}, Valid: true},
-		OrderNumber: "ORD-123",
+		OrderNumber: utils.ToText("ORD-123"),
 		Executor:    pgtype.Text{String: "user1", Valid: true},
 	}
 
@@ -98,7 +99,7 @@ func TestUpdateOrder(t *testing.T) {
 		Price:       pgtype.Numeric{Int: big.NewInt(15000), Exp: -2, Valid: true},
 		Platform:    "mobile",
 		GeneralID:   pgtype.UUID{Bytes: [16]byte{16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}, Valid: true},
-		OrderNumber: "ORD-456",
+		OrderNumber: utils.ToText("ORD-456"),
 		Executor:    pgtype.Text{String: "user2", Valid: true},
 	}
 

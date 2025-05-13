@@ -4,19 +4,95 @@ import (
 	"context"
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"log"
 	db "orders-center/db/sqlc"
 	"orders-center/internal/domain/outbox/entity"
 	"orders-center/internal/utils"
 )
 
 type outboxRepository struct {
-	q db.Queries
+	q *db.Queries
+}
+
+func NewOutboxRepository(q *db.Queries) OutboxRepository {
+	return &outboxRepository{
+		q: q,
+	}
+}
+
+func (r *outboxRepository) BatchPendingTasks(ctx context.Context, limit int) ([]entity.OutboxEvent, error) {
+	events, err := r.q.BatchPendingTasks(ctx, int32(limit))
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]entity.OutboxEvent, len(events))
+	for _, event := range events {
+		result = append(result, entity.OutboxEvent{
+			ID:            event.ID.Bytes,
+			AggregateType: event.AggregateType,
+			AggregateID:   event.AggregateID.Bytes,
+			EventType:     event.EventType,
+			Payload:       event.Payload,
+			Status:        event.Status,
+			RetryCount:    event.RetryCount.Int32,
+			CreatedAt:     event.CreatedAt.Time,
+			ProcessedAt:   event.ProcessedAt.Time,
+		})
+	}
+	return result, nil
+}
+
+func (r *outboxRepository) IncrementRetryCount(ctx context.Context, id uuid.UUID) error {
+	log.Println("entered outboxrepo")
+	err := r.q.IncrementRetryCount(ctx, utils.ToUUID(id))
+	if err == nil {
+		log.Println("increased retry count")
+	}
+	return err
+}
+
+func (r *outboxRepository) FetchOnePendingForUpdateWithID(ctx context.Context, id uuid.UUID) (entity.OutboxEvent, error) {
+	event, err := r.q.FetchOnePendingForUpdateWithID(ctx, utils.ToUUID(id))
+	if err != nil {
+		return entity.OutboxEvent{}, err
+	}
+	return entity.OutboxEvent{
+		ID:            event.ID.Bytes,
+		AggregateType: event.AggregateType,
+		AggregateID:   event.AggregateID.Bytes,
+		EventType:     event.EventType,
+		Payload:       event.Payload,
+		Status:        event.Status,
+		RetryCount:    event.RetryCount.Int32,
+		CreatedAt:     event.CreatedAt.Time,
+		ProcessedAt:   event.ProcessedAt.Time,
+	}, nil
+}
+
+func (r *outboxRepository) FetchOnePendingForUpdate(ctx context.Context) (entity.OutboxEvent, error) {
+	event, err := r.q.FetchOnePendingForUpdate(ctx)
+	if err != nil {
+		return entity.OutboxEvent{}, err
+	}
+	return entity.OutboxEvent{
+		ID:            event.ID.Bytes,
+		AggregateType: event.AggregateType,
+		AggregateID:   event.AggregateID.Bytes,
+		EventType:     event.EventType,
+		Payload:       event.Payload,
+		Status:        event.Status,
+		RetryCount:    event.RetryCount.Int32,
+		CreatedAt:     event.CreatedAt.Time,
+		ProcessedAt:   event.ProcessedAt.Time,
+	}, nil
+
 }
 
 // Создание нового события в Outbox
 func (r *outboxRepository) CreateEvent(ctx context.Context, event entity.OutboxEvent) (entity.OutboxEvent, error) {
 	sqlArg := db.CreateOutboxEventParams{
-		ID:            utils.ToUUID(event.ID),
 		AggregateType: event.AggregateType,
 		AggregateID:   utils.ToUUID(event.AggregateID),
 		EventType:     event.EventType,

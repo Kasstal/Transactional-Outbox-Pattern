@@ -2,110 +2,94 @@ package cron
 
 import (
 	"context"
-	"github.com/gofrs/uuid"
 	"log"
-	transactional "orders-center/cmd/transactional"
-	taskEntity "orders-center/internal/domain/outbox/entity"
-	outboxService "orders-center/internal/domain/outbox/service"
 	"sync"
 	"time"
 )
 
-type Scheduler interface {
-	Start(ctx context.Context, job func(ctx context.Context) error) // передаем контекст в job
+type Cron interface {
+	Start(ctx context.Context)
+	AddFunc(name string, f func(ctx context.Context) error, interval time.Duration)
 }
 
-type WorkerPoolCron struct {
-	display     []uuid.UUID
-	outBox      outboxService.OutboxService
-	txService   transactional.TransactionService
-	interval    time.Duration
-	taskChan    chan taskEntity.OutboxEvent
-	workerQueue chan struct{}
+type Scheduler struct {
+	jobs        []Job
+	jobChan     chan Job
+	wg          sync.WaitGroup
 	workerCount int
-	wg          *sync.WaitGroup
+	stopChan    chan struct{}
 }
 
-func NewWorkerPoolScheduler(interval time.Duration, workerCnt int, outboxService outboxService.OutboxService) *WorkerPoolCron {
-	return &WorkerPoolCron{
-		interval:    interval,
-		outBox:      outboxService,
-		workerQueue: make(chan struct{}, workerCnt),
-		workerCount: workerCnt,
-		wg:          &sync.WaitGroup{},
-	}
+type Job struct {
+	name     string
+	job      func(ctx context.Context) error
+	interval time.Duration
 }
 
-/*
-	func (w *WorkerPoolCron) Start(ctx context.Context, job func(ctx context.Context) error) {
-		ticker := time.NewTicker(w.interval)
-		defer ticker.Stop()
-		// Запуск Cron
-		for {
-			select {
-			case <-ctx.Done():
-				return // если контекст отменен, останавливаем cron
-			case <-ticker.C:
-
-				for i := len(w.workerQueue); i < w.workerCount; i++ {
-					log.Println("workers number: ", len(w.workerQueue))
-					w.wg.Add(1)
-					w.workerQueue <- struct{}{}
-					go func(workerID int) {
-						defer w.wg.Done()
-
-						log.Printf("Worker %d started\n", workerID)
-
-						if err := job(ctx); err != nil {
-							log.Printf("Error in worker %d: %v\n", workerID, err)
-						}
-
-						log.Printf("Worker %d finished\n", workerID)
-
-						<-w.workerQueue
-					}(i)
-
-				}
-
-				w.wg.Wait()
-			}
-		}
+func NewScheduler(workerCount int) Cron {
+	return &Scheduler{
+		jobChan:     make(chan Job),
+		workerCount: workerCount,
+		stopChan:    make(chan struct{}),
 	}
-*/
-func (w *WorkerPoolCron) Start(ctx context.Context, workerJob func(ctx context.Context) error) {
-	ticker := time.NewTicker(w.interval)
-	defer ticker.Stop()
-	w.taskChan = make(chan taskEntity.OutboxEvent, 10)
-	go w.runWorkers(ctx, workerJob)
+}
+func (s *Scheduler) Start(ctx context.Context) {
+	for i := 0; i < s.workerCount; i++ {
+		s.wg.Add(1)
+		go s.worker(ctx, i)
+	}
 
-	// Запуск Cron
+	for _, job := range s.jobs {
+		s.wg.Add(1)
+		go s.scheduleJob(ctx, job)
+	}
+
+}
+func (s *Scheduler) AddFunc(name string, f func(ctx context.Context) error, interval time.Duration) {
+	newJob := Job{
+		name:     name,
+		job:      f,
+		interval: interval,
+	}
+
+	s.jobs = append(s.jobs, newJob)
+}
+
+func (s *Scheduler) scheduleJob(ctx context.Context, job Job) {
+	defer s.wg.Done()
+	ticker := time.NewTicker(job.interval)
 	for {
 		select {
 		case <-ctx.Done():
-			w.wg.Wait()
-			return // если контекст отменен, останавливаем cron
+			return
 		case <-ticker.C:
-			
-		}
-
+			select {
+			case s.jobChan <- job:
+			case <-ctx.Done():
+				return
+			}
 		}
 	}
 }
 
-func worker(ctx context.Context, workerID int, taskChan <-chan taskEntity.OutboxEvent, job func(ctx context.Context) error) {
-	for task := range taskChan {
-		ctxWithID := context.WithValue(ctx, "ID", task.ID)
-		log.Printf("Worker %d starts task with id %v", workerID, task.ID)
-		if err := job(ctxWithID); err != nil {
-			log.Printf("Error in worker %d: %v\n", workerID, err)
+func (s *Scheduler) worker(ctx context.Context, workerID int) {
+	defer s.wg.Done()
+
+	for {
+		select {
+		case job := <-s.jobChan:
+			log.Println("worker", workerID, "start job", job.name)
+			err := job.job(ctx)
+			if err != nil {
+				log.Printf("Worker %d did not compelete job %s: %v", workerID, job.name, err.Error())
+			}
+			log.Println("worker", workerID, "finish job", job.name)
+		case <-s.stopChan:
+			return
 		}
-		log.Printf("Worker %d finished\n", workerID)
 	}
 }
-
-func (w *WorkerPoolCron) runWorkers(ctx context.Context, job func(ctx context.Context) error) {
-
-	for i := 0; i < w.workerCount; i++ {
-		go worker(ctx, i, w.taskChan, job)
-	}
+func (s *Scheduler) Stop() {
+	close(s.stopChan)
+	s.wg.Wait()
 }

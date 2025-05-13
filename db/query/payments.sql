@@ -1,9 +1,9 @@
 -- name: CreatePayment :one
 INSERT INTO payments (
-    id, order_id, type, sum, payed, info,
+    order_id, type, sum, payed, info,
     contract_number, external_id, credit_data, card_data
 ) VALUES (
-             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+             $1, $2, $3, $4, $5, $6, $7, $8, $9
          ) RETURNING *;
 
 -- name: GetPayment :one

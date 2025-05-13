@@ -1,134 +1,147 @@
 package order_eno_1c
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
-	"github.com/gofrs/uuid"
 	"log"
+	"net/http"
 	"orders-center/cmd/cron"
+	orderFullSvc "orders-center/cmd/order_full/entity"
 	orderFullService "orders-center/cmd/order_full/order_full_service"
 	transactional "orders-center/cmd/transactional"
 	db "orders-center/db/sqlc"
-	outboxRepo "orders-center/internal/domain/outbox/repository"
+	outbox "orders-center/internal/domain/outbox/entity"
 	outboxService "orders-center/internal/domain/outbox/service"
-	"orders-center/internal/utils"
+	"sync"
 	"time"
 )
 
 type OrderEno1c struct {
-	cron                 cron.Scheduler
-	outboxService        outboxService.OutboxService
+	mu                   sync.Mutex
+	cron                 cron.Cron
+	tasks                []outbox.OutboxEvent
 	transactionalService *transactional.TransactionService
-	orderFullService     *orderFullService.OrderFullService
+	outboxService        outboxService.OutboxService
 }
 
-func NewOrderEno1c(cron cron.Scheduler, outbox outboxService.OutboxService, transactionalService *transactional.TransactionService, orderFullService *orderFullService.OrderFullService) *OrderEno1c {
+func NewOrderEno1c(cron cron.Cron, transactionalService *transactional.TransactionService, outboxService outboxService.OutboxService) *OrderEno1c {
 	return &OrderEno1c{
+		outboxService:        outboxService,
 		cron:                 cron,
-		outboxService:        outbox,
 		transactionalService: transactionalService,
-		orderFullService:     orderFullService,
 	}
 }
 
 func (o *OrderEno1c) Run(ctx context.Context) {
-	o.cron.AddFunc()
-	o.cron.Start(ctx, o.processTask)
-}
-
-func (o *OrderEno1c) ProcessTask(ctx context.Context) error {
-	//timeout := 5 * time.Second
-	//taskCtx, cancel := context.WithTimeout(ctx, timeout)
-	//defer cancel()
-
-	err := o.transactionalService.ExecTx(ctx, func(q *db.Queries) error {
-		outboxRepository := outboxRepo.NewOutboxRepository(q)
-		outboxService := outboxService.NewOutboxService(outboxRepository)
-		log.Println("Fetching task for update...")
-
-		task, err := outboxService.FetchOnePendingForUpdate(ctx)
-		if err != nil {
-			log.Println("Error fetching task for update:", err)
-			return err
-		}
-		log.Println("Fetched task:", task.ID)
-		//orderFullEntity, err := o.orderFullService.GetOrderFull(ctx, task.AggregateID)
-		if err != nil {
-			log.Println(err)
-			return err
-		}
-		/*
-			json, err := json.Marshal(orderFullEntity)
-			if err != nil {
-				log.Println(err)
-				return err
-			}
-
-			resp, err := http.Post("localhost:1234", "application/json", bytes.NewBuffer(json))
-			defer resp.Body.Close()
-			if err != nil {
-				log.Println(err)
-				return err
-			}
-
-			if resp.StatusCode != http.StatusOK {
-				return fmt.Errorf("http status code %d", resp.StatusCode)
-			}*/
-
-		if err := outboxService.MarkEventProcessed(ctx, task.ID); err != nil {
-			log.Println("Error updating task status in outbox:", err)
-			return err
-		}
-		log.Println(task.ID)
-		return nil
-
-		// Задача выполнена успешно в пределах времени
-		/*if err := o.outboxService.MarkEventProcessed(ctx, task.ID); err != nil {
-			log.Println("Error updating task status in outbox:", err)
-			return err
-
-		}
-		return nil*/
-
-	})
-	log.Println("i am here :", err)
-	return err
-}
-
-func (o *OrderEno1c) ProcessTasks(ctx context.Context) error {
-	//process
-	return nil
+	o.cron.AddFunc("FETCH BATCH", o.getPendingTasks, 1*time.Second)
+	o.cron.AddFunc("process task", o.processTask, 1*time.Second)
+	o.cron.Start(ctx)
 }
 
 func (o *OrderEno1c) getPendingTasks(ctx context.Context) error {
+	batch, err := o.outboxService.BatchPendingTasks(ctx, 10)
+	if err != nil {
+		return err
+	}
+	for _, task := range batch {
 
+		if task.ID.String() == "00000000-0000-0000-0000-000000000000" {
+			continue
+		}
+		log.Println("sending: ", task.ID)
+		o.mu.Lock()
+		o.tasks = append(o.tasks, task)
+		o.mu.Unlock()
+	}
+
+	return nil
 }
 
 func (o *OrderEno1c) processTask(ctx context.Context) error {
-	id := ctx.Value("ID")
-	if id == nil {
-		return fmt.Errorf("ID not found in context")
+	if len(o.tasks) == 0 {
+		return fmt.Errorf("no pending tasks")
 	}
+	o.mu.Lock()
+	id := o.tasks[0].ID
+	log.Println("processing task: ", id)
+	o.mu.Unlock()
 	o.transactionalService.ExecTx(ctx, func(q *db.Queries) error {
 		//imitate work
-		time.Sleep(2 * time.Second)
 
-		outboxRepository := outboxRepo.NewOutboxRepository(q)
-		outboxService := outboxService.NewOutboxService(outboxRepository)
-		task, err := q.FetchOnePendingForUpdateWithID(ctx, utils.ToUUID(id.(uuid.UUID)))
+		outboxService := outboxService.NewOutboxService(q)
+		orderFullService := orderFullService.NewOrderFullService(q)
+		task, err := outboxService.FetchOnePendingForUpdateWithID(ctx, id)
+		log.Printf("FETCHED TASK : %v", task.ID)
 		if err != nil {
 			log.Println("Error fetching task:", err)
+			return err
 		}
 		if task.Status == "processed" {
 			return nil
 		}
-		if err := outboxService.MarkEventProcessed(ctx, task.ID.Bytes); err != nil {
+
+		orderFull, err := orderFullService.GetOrderFull(ctx, task.AggregateID)
+		log.Printf("Order Full : %v", orderFull.Order.ID)
+		if err != nil {
+			log.Println("Could not get OrderFull: ", err)
+		}
+
+		if err = PostOrderFull(orderFull); err != nil {
+			log.Printf("Could not Post OrderFull: %v", err)
+		}
+		if err != nil {
+			incrementErr := outboxService.IncrementRetryCount(ctx, task.ID)
+			if incrementErr != nil {
+				return fmt.Errorf("Could not increment retry count: ", incrementErr)
+			}
+			log.Printf("Could not get OrderFull: %v Could not increment: %v", err, incrementErr)
+			return nil
+		}
+		if err = outboxService.MarkEventProcessed(ctx, task.ID); err != nil {
 			return err
 		}
 
-		log.Println(id)
+		log.Println("processed: ", id)
 		return nil
 	})
+	o.mu.Lock()
+	o.tasks = o.tasks[1:]
+	o.mu.Unlock()
+	return nil
+}
+
+func PostOrderFull(orderFull orderFullSvc.OrderFull) error {
+	data, err := json.Marshal(orderFull)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest("POST", "http://localhost:1234/orders", bytes.NewBuffer(data))
+	if err != nil {
+		log.Printf("failed to create request: %v", err)
+		return err
+	}
+
+	// Set the appropriate headers
+	req.Header.Set("Content-Type", "application/json")
+
+	// Send the request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+
+		log.Printf("failed to send request: %v", err)
+		return err
+	}
+
+	if resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("invalid status code: %d", resp.StatusCode)
+		log.Printf("server returned non-created status: %v", resp.Status)
+	}
+
+	log.Println("Order successfully posted!")
+	resp.Body.Close()
 
 	return nil
 }

@@ -13,7 +13,6 @@ func createRandomOrderItem(t *testing.T) OrderItem {
 	order := createRandomOrder(t)
 
 	arg := CreateOrderItemParams{
-		ID:            int32(randomInt(1, 1000)),
 		ProductID:     randomProductID(),
 		ExternalID:    pgtype.Text{String: randomExternalID(), Valid: true},
 		Status:        randomItemStatus(),
@@ -41,7 +40,7 @@ func TestCreateOrderItem(t *testing.T) {
 	order := createRandomOrder(t)
 
 	arg := CreateOrderItemParams{
-		ID:            int32(randomInt(1, 1000)),
+
 		ProductID:     "prod-123",
 		ExternalID:    pgtype.Text{String: "ext-123", Valid: true},
 		Status:        "reserved",
@@ -61,7 +60,6 @@ func TestCreateOrderItem(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, item)
 
-	require.Equal(t, arg.ID, item.ID)
 	require.Equal(t, arg.ProductID, item.ProductID)
 	require.Equal(t, arg.ExternalID, item.ExternalID)
 	require.Equal(t, arg.Status, item.Status)

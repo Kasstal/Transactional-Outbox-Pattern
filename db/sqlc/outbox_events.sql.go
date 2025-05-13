@@ -12,17 +12,59 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const batchPendingTasks = `-- name: BatchPendingTasks :many
+WITH batch AS (
+    SELECT id
+    FROM outbox_events
+    WHERE status = 'pending'
+    LIMIT $1
+    )
+UPDATE outbox_events
+SET status = 'in_progress'
+WHERE id IN (SELECT id FROM batch)
+RETURNING id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, created_at, processed_at
+`
+
+func (q *Queries) BatchPendingTasks(ctx context.Context, limit int32) ([]OutboxEvent, error) {
+	rows, err := q.db.Query(ctx, batchPendingTasks, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []OutboxEvent
+	for rows.Next() {
+		var i OutboxEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.AggregateType,
+			&i.AggregateID,
+			&i.EventType,
+			&i.Payload,
+			&i.Status,
+			&i.RetryCount,
+			&i.CreatedAt,
+			&i.ProcessedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createOutboxEvent = `-- name: CreateOutboxEvent :one
 INSERT INTO outbox_events (
-    id, aggregate_type, aggregate_id, event_type,
+    aggregate_type, aggregate_id, event_type,
     payload, status, retry_count
 ) VALUES (
-             $1, $2, $3, $4, $5, $6, $7
+             $1, $2, $3, $4, $5, $6
          ) RETURNING id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, created_at, processed_at
 `
 
 type CreateOutboxEventParams struct {
-	ID            pgtype.UUID     `json:"id"`
 	AggregateType string          `json:"aggregate_type"`
 	AggregateID   pgtype.UUID     `json:"aggregate_id"`
 	EventType     string          `json:"event_type"`
@@ -33,7 +75,6 @@ type CreateOutboxEventParams struct {
 
 func (q *Queries) CreateOutboxEvent(ctx context.Context, arg CreateOutboxEventParams) (OutboxEvent, error) {
 	row := q.db.QueryRow(ctx, createOutboxEvent,
-		arg.ID,
 		arg.AggregateType,
 		arg.AggregateID,
 		arg.EventType,
@@ -63,6 +104,52 @@ DELETE FROM outbox_events WHERE id = $1
 func (q *Queries) DeleteOutboxEvent(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deleteOutboxEvent, id)
 	return err
+}
+
+const fetchOnePendingForUpdate = `-- name: FetchOnePendingForUpdate :one
+SELECT id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, created_at, processed_at
+FROM outbox_events
+WHERE status = 'pending' FOR UPDATE SKIP LOCKED LIMIT 1
+`
+
+func (q *Queries) FetchOnePendingForUpdate(ctx context.Context) (OutboxEvent, error) {
+	row := q.db.QueryRow(ctx, fetchOnePendingForUpdate)
+	var i OutboxEvent
+	err := row.Scan(
+		&i.ID,
+		&i.AggregateType,
+		&i.AggregateID,
+		&i.EventType,
+		&i.Payload,
+		&i.Status,
+		&i.RetryCount,
+		&i.CreatedAt,
+		&i.ProcessedAt,
+	)
+	return i, err
+}
+
+const fetchOnePendingForUpdateWithID = `-- name: FetchOnePendingForUpdateWithID :one
+SELECT id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, created_at, processed_at
+FROM outbox_events
+WHERE id = $1 FOR UPDATE SKIP LOCKED LIMIT 1
+`
+
+func (q *Queries) FetchOnePendingForUpdateWithID(ctx context.Context, id pgtype.UUID) (OutboxEvent, error) {
+	row := q.db.QueryRow(ctx, fetchOnePendingForUpdateWithID, id)
+	var i OutboxEvent
+	err := row.Scan(
+		&i.ID,
+		&i.AggregateType,
+		&i.AggregateID,
+		&i.EventType,
+		&i.Payload,
+		&i.Status,
+		&i.RetryCount,
+		&i.CreatedAt,
+		&i.ProcessedAt,
+	)
+	return i, err
 }
 
 const getOutboxEvent = `-- name: GetOutboxEvent :one
@@ -120,31 +207,34 @@ func (q *Queries) GetPendingOutboxEvents(ctx context.Context, limit int32) ([]Ou
 	return items, nil
 }
 
+const incrementRetryCount = `-- name: IncrementRetryCount :exec
+UPDATE outbox_events
+SET retry_count = retry_count + 1,
+    status = 'pending'
+WHERE id = $1
+`
+
+func (q *Queries) IncrementRetryCount(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, incrementRetryCount, id)
+	return err
+}
+
 const updateOutboxEventStatus = `-- name: UpdateOutboxEventStatus :one
 UPDATE outbox_events
 SET
-    status = $2,
-    retry_count = $3,
-    processed_at = CASE WHEN $2 = 'processed' THEN now() ELSE processed_at END,
-    payload = $4
-WHERE id = $1
+    status = $1::varchar(20),
+    processed_at = CASE WHEN $1 = 'processed' THEN now() ELSE processed_at END
+WHERE id = $2
     RETURNING id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, created_at, processed_at
 `
 
 type UpdateOutboxEventStatusParams struct {
-	ID         pgtype.UUID     `json:"id"`
-	Status     string          `json:"status"`
-	RetryCount pgtype.Int4     `json:"retry_count"`
-	Payload    json.RawMessage `json:"payload"`
+	Status string      `json:"status"`
+	ID     pgtype.UUID `json:"id"`
 }
 
 func (q *Queries) UpdateOutboxEventStatus(ctx context.Context, arg UpdateOutboxEventStatusParams) (OutboxEvent, error) {
-	row := q.db.QueryRow(ctx, updateOutboxEventStatus,
-		arg.ID,
-		arg.Status,
-		arg.RetryCount,
-		arg.Payload,
-	)
+	row := q.db.QueryRow(ctx, updateOutboxEventStatus, arg.Status, arg.ID)
 	var i OutboxEvent
 	err := row.Scan(
 		&i.ID,

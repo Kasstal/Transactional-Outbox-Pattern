@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"github.com/gofrs/uuid"
-
 	"github.com/jackc/pgx/v5/pgtype"
+	db "orders-center/db/sqlc"
 	"orders-center/internal/domain/order/entity"
 	"orders-center/internal/domain/order/repository"
 	"orders-center/internal/utils"
@@ -20,7 +20,13 @@ type orderService struct {
 	repo repository.OrderRepository
 }
 
+/*
 func NewOrderService(repo repository.OrderRepository) OrderService {
+	return &orderService{repo: repo}
+}*/
+
+func NewOrderService(q *db.Queries) OrderService {
+	repo := repository.NewOrderRepository(q)
 	return &orderService{repo: repo}
 }
 
