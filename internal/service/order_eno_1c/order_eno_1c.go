@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/gofrs/uuid"
 	"log"
 	"net/http"
+	inboxSvc "orders-center/internal/domain/inbox/service"
 	outbox "orders-center/internal/domain/outbox/entity"
 	outboxService "orders-center/internal/domain/outbox/service"
 	"orders-center/internal/service/cron"
@@ -20,11 +22,18 @@ type OrderEno1c struct {
 	cron                 cron.Cron
 	transactionalService transactional.Transactional
 	outboxService        outboxService.OutboxService
+	inboxService         inboxSvc.InboxService
 	orderFullService     orderFullService.OrderFullService
 }
 
-func NewOrderEno1c(cron cron.Cron, transactionalService transactional.Transactional, orderFullService orderFullService.OrderFullService, outboxService outboxService.OutboxService) *OrderEno1c {
+func NewOrderEno1c(cron cron.Cron,
+	transactionalService transactional.Transactional,
+	orderFullService orderFullService.OrderFullService,
+	outboxService outboxService.OutboxService,
+	inboxService inboxSvc.InboxService,
+) *OrderEno1c {
 	return &OrderEno1c{
+		inboxService:         inboxService,
 		outboxService:        outboxService,
 		orderFullService:     orderFullService,
 		cron:                 cron,
@@ -63,25 +72,31 @@ func (o *OrderEno1c) getPendingTasks(ctx context.Context, taskChan chan<- cron.T
 func (o *OrderEno1c) processTask(ctx context.Context, task cron.Task) error {
 	id := ctx.Value("id").(int)
 	err := o.transactionalService.ExecTx(ctx, func(ctx context.Context) error {
-
+		//RETRIEVE TASK
 		outboxTask := task.Data.(outbox.OutboxEvent)
+		//GET LOCK NOWAIT
 		sqlc, err := o.outboxService.FetchOnePendingForUpdateWithID(ctx, outboxTask.ID)
-		if sqlc.Status == "processed" {
-			return nil
-		}
 		log.Printf("Worker %d FETCHED TASK : %v", id, task.ID)
 		if err != nil {
 
 			log.Println("Error fetching task:", err, "In Worker: ", id)
 			return err
 		}
+
+		if o.checkProcessed(ctx, sqlc.ID) {
+			return fmt.Errorf("task id %d is already processed", outboxTask.ID, "In Worker: ", id)
+		}
+		//Create processed record in inbox
+		_, err = o.inboxService.Create(ctx, sqlc.ID)
+		if err != nil {
+			return err
+		}
+		log.Println("added processed task id into INBOX: ", sqlc.ID)
+
+		//mark event processed in outbox
 		if err = o.outboxService.MarkEventProcessed(ctx, outboxTask.ID); err != nil {
 			return err
 		}
-		log.Println("marked processed task:", outboxTask.ID, "in Worker: ", id)
-		/*if outboxTask.Status == "processed" {
-			return fmt.Errorf("task already processed")
-		}*/
 
 		orderFull, err := o.orderFullService.GetOrderFull(ctx, outboxTask.AggregateID)
 		log.Printf("Order Full : %v in Worker %d", orderFull.Order.ID, id)
@@ -107,7 +122,6 @@ func (o *OrderEno1c) processTask(ctx context.Context, task cron.Task) error {
 			log.Printf("Could not get OrderFull: %v", err)
 			return nil
 		}
-
 		log.Println("processed: ", outboxTask.ID, "in Worker: ", id)
 		return nil
 	})
@@ -152,4 +166,15 @@ func PostOrderFull(orderFull orderFull.OrderFull) error {
 	resp.Body.Close()
 
 	return nil
+}
+
+func (o *OrderEno1c) checkProcessed(ctx context.Context, id uuid.UUID) bool {
+	getEventIfExists, err := o.inboxService.GetInboxEvent(ctx, id)
+	if err != nil {
+		log.Printf("could not get inbox event: %v", err)
+	}
+	if getEventIfExists.EventID.IsNil() {
+		return false
+	}
+	return true
 }

@@ -33,7 +33,7 @@ DROP TABLE IF EXISTS history;
 DROP TABLE IF EXISTS payments;
 DROP TABLE IF EXISTS order_items;
 DROP TABLE IF EXISTS orders;
-
+DROP TABLE IF EXISTS inbox_events;
 -- 4. Drop custom types
 DROP TYPE IF EXISTS payment_type;
 

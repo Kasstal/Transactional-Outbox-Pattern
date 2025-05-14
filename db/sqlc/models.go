@@ -21,6 +21,10 @@ type History struct {
 	OrderID  pgtype.UUID        `json:"order_id"`
 }
 
+type InboxEvent struct {
+	EventID pgtype.UUID `json:"event_id"`
+}
+
 type Order struct {
 	ID          pgtype.UUID        `json:"id"`
 	Type        string             `json:"type"`

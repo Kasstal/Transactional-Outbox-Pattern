@@ -11,6 +11,8 @@ import (
 	"orders-center/cmd/usecase"
 	historyRepo "orders-center/internal/domain/history/repository"
 	historySvc "orders-center/internal/domain/history/service"
+	inboxRepo "orders-center/internal/domain/inbox/repository"
+	inboxSvc "orders-center/internal/domain/inbox/service"
 	orderRepo "orders-center/internal/domain/order/repository"
 	orderSvc "orders-center/internal/domain/order/service"
 	itemRepo "orders-center/internal/domain/order_item/repository"
@@ -56,6 +58,8 @@ func main() {
 	itemRepository := itemRepo.NewOrderItemRepository(pool)
 	outboxRepository := outboxRepo.NewOutboxRepository(pool)
 	paymentRepository := paymentRepo.NewPaymentRepository(pool)
+	inboxRepository := inboxRepo.NewInboxRepository(pool)
+	inboxService := inboxSvc.NewInboxService(inboxRepository)
 	orderService := orderSvc.NewOrderService(orderRepository)
 	orderItemService := itemSvc.NewOrderItemService(itemRepository)
 	historyService := historySvc.NewHistoryService(historyRepository)
@@ -88,6 +92,7 @@ func main() {
 		txService,
 		orderFullService,
 		outboxService,
+		inboxService,
 	)
 	//Reset in_progress tasks
 
@@ -117,7 +122,7 @@ func main() {
 			stop()
 		}
 	}()
-	go PostOrderFull(ctx)
+	//go PostOrderFull(ctx)
 	<-ctx.Done()
 	//cfg := graceful.NewShutDownConfig(5*time.Second, enoService.Reset, enoService.Stop)
 

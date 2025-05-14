@@ -71,6 +71,10 @@ CREATE TABLE "history" (
                            "order_id" uuid NOT NULL
 );
 
+CREATE TABLE "inbox_events" (
+                           "event_id" uuid PRIMARY KEY
+);
+
 CREATE INDEX ON "orders" ("status");
 
 CREATE INDEX ON "orders" ("platform");
