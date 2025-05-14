@@ -99,7 +99,7 @@ func main() {
 	r := gin.Default()
 	r.POST("/orders", orderHandler.CreateOrderFull)
 
-	// 4. Запуск HTTP-сервера с graceful shutdown
+	// 4. Запуск HTTP-сервера с graceful
 	srv := &http.Server{
 		Addr:    ":8080",
 		Handler: r,
@@ -120,5 +120,7 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		fmt.Printf("HTTP shutdown error: %v\n", err)
 	}
+	enoService.Reset()
+
 	fmt.Println("Service stopped")
 }

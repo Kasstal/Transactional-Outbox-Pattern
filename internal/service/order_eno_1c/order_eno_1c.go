@@ -37,13 +37,13 @@ func NewOrderEno1c(cron cron.Cron, transactionalService transactional.Transactio
 }
 
 func (o *OrderEno1c) Run(ctx context.Context) {
-	o.cron.AddFunc("FETCH BATCH", o.getPendingTasks, 3*time.Second)
-	o.cron.AddFunc("process task", o.processTask, 200*time.Millisecond)
+	o.cron.AddFunc("FETCH BATCH", o.getPendingTasks, 3*time.Second, 3*time.Second)
+	o.cron.AddFunc("process task", o.processTask, 200*time.Millisecond, 1*time.Second)
 	o.cron.Start(ctx)
 }
 
 func (o *OrderEno1c) getPendingTasks(ctx context.Context) error {
-	batch, err := o.outboxService.BatchPendingTasks(ctx, 5)
+	batch, err := o.outboxService.BatchPendingTasks(ctx, 20)
 	if err != nil {
 		return err
 	}
@@ -110,6 +110,21 @@ func (o *OrderEno1c) processTask(ctx context.Context) error {
 	o.tasks = o.tasks[1:]
 	o.mu.Unlock()
 	return nil
+}
+
+func (o *OrderEno1c) Reset() error {
+	var err error
+	for _, task := range o.tasks {
+		_, err = o.outboxService.UpdateEventStatus(context.Background(), task.ID, "pending")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (o *OrderEno1c) Stop() {
+	o.cron.Stop()
 }
 
 func PostOrderFull(orderFull orderFull.OrderFull) error {

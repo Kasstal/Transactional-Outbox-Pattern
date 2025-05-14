@@ -9,7 +9,7 @@ import (
 
 type Cron interface {
 	Start(ctx context.Context)
-	AddFunc(name string, f func(ctx context.Context) error, interval time.Duration)
+	AddFunc(name string, f func(ctx context.Context) error, interval time.Duration, deadline time.Duration)
 	Stop()
 }
 
@@ -25,6 +25,7 @@ type Job struct {
 	name     string
 	job      func(ctx context.Context) error
 	interval time.Duration
+	deadline time.Duration
 }
 
 func NewScheduler(workerCount int) Cron {
@@ -46,11 +47,12 @@ func (s *Scheduler) Start(ctx context.Context) {
 	}
 
 }
-func (s *Scheduler) AddFunc(name string, f func(ctx context.Context) error, interval time.Duration) {
+func (s *Scheduler) AddFunc(name string, f func(ctx context.Context) error, interval time.Duration, deadline time.Duration) {
 	newJob := Job{
 		name:     name,
 		job:      f,
 		interval: interval,
+		deadline: deadline,
 	}
 
 	s.jobs = append(s.jobs, newJob)
@@ -80,7 +82,9 @@ func (s *Scheduler) worker(ctx context.Context, workerID int) {
 		select {
 		case job := <-s.jobChan:
 			log.Println("worker", workerID, "start job", job.name)
-			err := job.job(ctx)
+			deadlineCtx, cancel := context.WithTimeout(ctx, job.deadline)
+			defer cancel()
+			err := job.job(deadlineCtx)
 			if err != nil {
 				log.Printf("Worker %d did not compelete job %s: %v", workerID, job.name, err.Error())
 			}

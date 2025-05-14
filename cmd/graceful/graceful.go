@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// ShutdownConfig — конфигурация для graceful shutdown.
+// ShutdownConfig — конфиг для graceful shutdown.
 type ShutdownConfig struct {
 	Timeout  time.Duration
 	Handlers []func()
