@@ -96,6 +96,6 @@ func (s *CreateOrderUseCase) Create(ctx context.Context, orderFull entity.OrderF
 
 		return nil
 	})
-	log.Println(err)
+
 	return err
 }

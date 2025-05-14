@@ -47,6 +47,8 @@ CREATE TABLE "payments" (
                             "updated_at" timestamptz NOT NULL DEFAULT (now())
 );
 
+
+
 CREATE TABLE "outbox_events" (
                                  "id" uuid PRIMARY KEY DEFAULT (gen_random_uuid()),
                                  "aggregate_type" varchar(50) NOT NULL,
@@ -58,7 +60,6 @@ CREATE TABLE "outbox_events" (
                                  "created_at" timestamptz NOT NULL DEFAULT (now()),
                                  "processed_at" timestamptz
 );
-
 CREATE TABLE "history" (
                            "id" serial PRIMARY KEY,
                            "type" varchar(50) NOT NULL,

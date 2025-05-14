@@ -109,7 +109,7 @@ func (q *Queries) DeleteOutboxEvent(ctx context.Context, id pgtype.UUID) error {
 const fetchOnePendingForUpdate = `-- name: FetchOnePendingForUpdate :one
 SELECT id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, created_at, processed_at
 FROM outbox_events
-WHERE status = 'pending' FOR UPDATE SKIP LOCKED LIMIT 1
+WHERE status = 'pending' FOR UPDATE NOWAIT LIMIT 1
 `
 
 func (q *Queries) FetchOnePendingForUpdate(ctx context.Context) (OutboxEvent, error) {
@@ -132,7 +132,7 @@ func (q *Queries) FetchOnePendingForUpdate(ctx context.Context) (OutboxEvent, er
 const fetchOnePendingForUpdateWithID = `-- name: FetchOnePendingForUpdateWithID :one
 SELECT id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, created_at, processed_at
 FROM outbox_events
-WHERE id = $1 FOR UPDATE SKIP LOCKED LIMIT 1
+WHERE id = $1 FOR UPDATE NOWAIT LIMIT 1
 `
 
 func (q *Queries) FetchOnePendingForUpdateWithID(ctx context.Context, id pgtype.UUID) (OutboxEvent, error) {
@@ -208,7 +208,7 @@ func (q *Queries) GetOutboxEvent(ctx context.Context, id pgtype.UUID) (OutboxEve
 }
 
 const getPendingOutboxEvents = `-- name: GetPendingOutboxEvents :many
-SELECT id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, created_at, processed_at FROM outbox_events WHERE status = 'pending' LIMIT $1
+SELECT id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, created_at, processed_at FROM outbox_events WHERE status = 'pending' FOR UPDATE SKIP LOCKED LIMIT $1
 `
 
 func (q *Queries) GetPendingOutboxEvents(ctx context.Context, limit int32) ([]OutboxEvent, error) {

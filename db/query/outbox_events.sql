@@ -10,7 +10,7 @@ INSERT INTO outbox_events (
 SELECT * FROM outbox_events WHERE id = $1 LIMIT 1;
 
 -- name: GetPendingOutboxEvents :many
-SELECT * FROM outbox_events WHERE status = 'pending' LIMIT $1;
+SELECT * FROM outbox_events WHERE status = 'pending' FOR UPDATE SKIP LOCKED LIMIT $1;
 -- name: GetAllInProgressOutboxEvents :many
 SELECT * FROM outbox_events WHERE status = 'in_progress';
 
@@ -29,12 +29,12 @@ DELETE FROM outbox_events WHERE id = $1;
 -- name: FetchOnePendingForUpdate :one
 SELECT *
 FROM outbox_events
-WHERE status = 'pending' FOR UPDATE SKIP LOCKED LIMIT 1;
+WHERE status = 'pending' FOR UPDATE NOWAIT LIMIT 1;
 
 -- name: FetchOnePendingForUpdateWithID :one
 SELECT *
 FROM outbox_events
-WHERE id = $1 FOR UPDATE SKIP LOCKED LIMIT 1;
+WHERE id = $1 FOR UPDATE NOWAIT LIMIT 1;
 
 -- name: BatchPendingTasks :many
 WITH batch AS (
@@ -47,6 +47,7 @@ UPDATE outbox_events
 SET status = 'in_progress'
 WHERE id IN (SELECT id FROM batch)
 RETURNING *;
+
 
 
 

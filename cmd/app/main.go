@@ -82,7 +82,7 @@ func main() {
 	orderHandler := handler.NewOrderHandler(createOrderUC)
 
 	// 3. Cron + order_eno_1c
-	cronScheduler := cron.NewScheduler(15)
+	cronScheduler := cron.NewScheduler(2)
 	enoService := order_eno_1c.NewOrderEno1c(
 		cronScheduler,
 		txService,
@@ -90,7 +90,7 @@ func main() {
 		outboxService,
 	)
 	//Reset in_progress tasks
-	err = enoService.InitReset()
+
 	if err != nil {
 		log.Println("Couldn't reset 'in progress tasks'")
 	}
@@ -117,7 +117,7 @@ func main() {
 			stop()
 		}
 	}()
-	go PostOrderFull(ctx)
+	//go PostOrderFull(ctx)
 	<-ctx.Done()
 	//cfg := graceful.NewShutDownConfig(5*time.Second, enoService.Reset, enoService.Stop)
 
@@ -127,7 +127,7 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		fmt.Printf("HTTP shutdown error: %v\n", err)
 	}
-	err = enoService.ShutdownReset()
+
 	if err != nil {
 		fmt.Println("Could not reset")
 	}
