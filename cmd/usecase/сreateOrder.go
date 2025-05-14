@@ -83,12 +83,12 @@ func (s *CreateOrderUseCase) Create(ctx context.Context, orderFull entity.OrderF
 			log.Println(err)
 			return err
 		}
-		// Добавляем событие в Outbox
+		// Add event в Outbox
 		if err := s.outboxService.AddNewEvent(ctx, outboxSvc.AddEventParams{
-			AggregateType: "OrderFull",        // Тип агрегата
-			AggregateID:   orderFull.Order.ID, // ID заказа
-			EventType:     "OrderCreated",     // Тип события
-			Payload:       payload,            // Данные события
+			AggregateType: "OrderFull",
+			AggregateID:   orderFull.Order.ID,
+			EventType:     "OrderCreated",
+			Payload:       payload,
 		}); err != nil {
 			log.Println(err)
 			return err
