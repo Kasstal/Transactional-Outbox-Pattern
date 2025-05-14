@@ -37,13 +37,13 @@ func NewOrderEno1c(cron cron.Cron, transactionalService transactional.Transactio
 }
 
 func (o *OrderEno1c) Run(ctx context.Context) {
-	o.cron.AddFunc("FETCH BATCH", o.getPendingTasks, 3*time.Second, 3*time.Second)
+	o.cron.AddFunc("FETCH BATCH", o.getPendingTasks, 1*time.Second, 3*time.Second)
 	o.cron.AddFunc("process task", o.processTask, 200*time.Millisecond, 1*time.Second)
 	o.cron.Start(ctx)
 }
 
 func (o *OrderEno1c) getPendingTasks(ctx context.Context) error {
-	batch, err := o.outboxService.BatchPendingTasks(ctx, 20)
+	batch, err := o.outboxService.BatchPendingTasks(ctx, 15)
 	if err != nil {
 		return err
 	}
@@ -112,8 +112,21 @@ func (o *OrderEno1c) processTask(ctx context.Context) error {
 	return nil
 }
 
-func (o *OrderEno1c) Reset() error {
+func (o *OrderEno1c) InitReset() error {
+	ctx := context.Background()
+	inProgressTasks, err := o.outboxService.GetAllInProgressEvents(ctx)
+	for _, task := range inProgressTasks {
+		_, err = o.outboxService.UpdateEventStatus(context.Background(), task.ID, "pending")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (o *OrderEno1c) ShutdownReset() error {
 	var err error
+
 	for _, task := range o.tasks {
 		_, err = o.outboxService.UpdateEventStatus(context.Background(), task.ID, "pending")
 		if err != nil {
@@ -123,8 +136,9 @@ func (o *OrderEno1c) Reset() error {
 	return nil
 }
 
-func (o *OrderEno1c) Stop() {
+func (o *OrderEno1c) Stop() error {
 	o.cron.Stop()
+	return nil
 }
 
 func PostOrderFull(orderFull orderFull.OrderFull) error {

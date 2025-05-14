@@ -152,6 +152,40 @@ func (q *Queries) FetchOnePendingForUpdateWithID(ctx context.Context, id pgtype.
 	return i, err
 }
 
+const getAllInProgressOutboxEvents = `-- name: GetAllInProgressOutboxEvents :many
+SELECT id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, created_at, processed_at FROM outbox_events WHERE status = 'in_progress'
+`
+
+func (q *Queries) GetAllInProgressOutboxEvents(ctx context.Context) ([]OutboxEvent, error) {
+	rows, err := q.db.Query(ctx, getAllInProgressOutboxEvents)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []OutboxEvent
+	for rows.Next() {
+		var i OutboxEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.AggregateType,
+			&i.AggregateID,
+			&i.EventType,
+			&i.Payload,
+			&i.Status,
+			&i.RetryCount,
+			&i.CreatedAt,
+			&i.ProcessedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getOutboxEvent = `-- name: GetOutboxEvent :one
 SELECT id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, created_at, processed_at FROM outbox_events WHERE id = $1 LIMIT 1
 `

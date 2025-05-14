@@ -6,7 +6,7 @@ package mockdb
 
 import (
 	context "context"
-	sqlc "orders-center/db/sqlc"
+	db "orders-center/db/sqlc"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -37,10 +37,10 @@ func (m *MockQuerier) EXPECT() *MockQuerierMockRecorder {
 }
 
 // BatchPendingTasks mocks base method.
-func (m *MockQuerier) BatchPendingTasks(ctx context.Context, limit int32) ([]sqlc.OutboxEvent, error) {
+func (m *MockQuerier) BatchPendingTasks(ctx context.Context, limit int32) ([]db.OutboxEvent, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "BatchPendingTasks", ctx, limit)
-	ret0, _ := ret[0].([]sqlc.OutboxEvent)
+	ret0, _ := ret[0].([]db.OutboxEvent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -52,10 +52,10 @@ func (mr *MockQuerierMockRecorder) BatchPendingTasks(ctx, limit interface{}) *go
 }
 
 // CreateHistory mocks base method.
-func (m *MockQuerier) CreateHistory(ctx context.Context, arg sqlc.CreateHistoryParams) (sqlc.History, error) {
+func (m *MockQuerier) CreateHistory(ctx context.Context, arg db.CreateHistoryParams) (db.History, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateHistory", ctx, arg)
-	ret0, _ := ret[0].(sqlc.History)
+	ret0, _ := ret[0].(db.History)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -67,10 +67,10 @@ func (mr *MockQuerierMockRecorder) CreateHistory(ctx, arg interface{}) *gomock.C
 }
 
 // CreateOrder mocks base method.
-func (m *MockQuerier) CreateOrder(ctx context.Context, arg sqlc.CreateOrderParams) (sqlc.Order, error) {
+func (m *MockQuerier) CreateOrder(ctx context.Context, arg db.CreateOrderParams) (db.Order, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateOrder", ctx, arg)
-	ret0, _ := ret[0].(sqlc.Order)
+	ret0, _ := ret[0].(db.Order)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -82,10 +82,10 @@ func (mr *MockQuerierMockRecorder) CreateOrder(ctx, arg interface{}) *gomock.Cal
 }
 
 // CreateOrderItem mocks base method.
-func (m *MockQuerier) CreateOrderItem(ctx context.Context, arg sqlc.CreateOrderItemParams) (sqlc.OrderItem, error) {
+func (m *MockQuerier) CreateOrderItem(ctx context.Context, arg db.CreateOrderItemParams) (db.OrderItem, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateOrderItem", ctx, arg)
-	ret0, _ := ret[0].(sqlc.OrderItem)
+	ret0, _ := ret[0].(db.OrderItem)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -97,10 +97,10 @@ func (mr *MockQuerierMockRecorder) CreateOrderItem(ctx, arg interface{}) *gomock
 }
 
 // CreateOutboxEvent mocks base method.
-func (m *MockQuerier) CreateOutboxEvent(ctx context.Context, arg sqlc.CreateOutboxEventParams) (sqlc.OutboxEvent, error) {
+func (m *MockQuerier) CreateOutboxEvent(ctx context.Context, arg db.CreateOutboxEventParams) (db.OutboxEvent, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateOutboxEvent", ctx, arg)
-	ret0, _ := ret[0].(sqlc.OutboxEvent)
+	ret0, _ := ret[0].(db.OutboxEvent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -112,10 +112,10 @@ func (mr *MockQuerierMockRecorder) CreateOutboxEvent(ctx, arg interface{}) *gomo
 }
 
 // CreatePayment mocks base method.
-func (m *MockQuerier) CreatePayment(ctx context.Context, arg sqlc.CreatePaymentParams) (sqlc.Payment, error) {
+func (m *MockQuerier) CreatePayment(ctx context.Context, arg db.CreatePaymentParams) (db.Payment, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreatePayment", ctx, arg)
-	ret0, _ := ret[0].(sqlc.Payment)
+	ret0, _ := ret[0].(db.Payment)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -197,10 +197,10 @@ func (mr *MockQuerierMockRecorder) DeletePayment(ctx, id interface{}) *gomock.Ca
 }
 
 // FetchOnePendingForUpdate mocks base method.
-func (m *MockQuerier) FetchOnePendingForUpdate(ctx context.Context) (sqlc.OutboxEvent, error) {
+func (m *MockQuerier) FetchOnePendingForUpdate(ctx context.Context) (db.OutboxEvent, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FetchOnePendingForUpdate", ctx)
-	ret0, _ := ret[0].(sqlc.OutboxEvent)
+	ret0, _ := ret[0].(db.OutboxEvent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -212,10 +212,10 @@ func (mr *MockQuerierMockRecorder) FetchOnePendingForUpdate(ctx interface{}) *go
 }
 
 // FetchOnePendingForUpdateWithID mocks base method.
-func (m *MockQuerier) FetchOnePendingForUpdateWithID(ctx context.Context, id pgtype.UUID) (sqlc.OutboxEvent, error) {
+func (m *MockQuerier) FetchOnePendingForUpdateWithID(ctx context.Context, id pgtype.UUID) (db.OutboxEvent, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FetchOnePendingForUpdateWithID", ctx, id)
-	ret0, _ := ret[0].(sqlc.OutboxEvent)
+	ret0, _ := ret[0].(db.OutboxEvent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -227,10 +227,10 @@ func (mr *MockQuerierMockRecorder) FetchOnePendingForUpdateWithID(ctx, id interf
 }
 
 // GetHistoriesByOrderID mocks base method.
-func (m *MockQuerier) GetHistoriesByOrderID(ctx context.Context, orderID pgtype.UUID) ([]sqlc.History, error) {
+func (m *MockQuerier) GetHistoriesByOrderID(ctx context.Context, orderID pgtype.UUID) ([]db.History, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHistoriesByOrderID", ctx, orderID)
-	ret0, _ := ret[0].([]sqlc.History)
+	ret0, _ := ret[0].([]db.History)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -242,10 +242,10 @@ func (mr *MockQuerierMockRecorder) GetHistoriesByOrderID(ctx, orderID interface{
 }
 
 // GetHistory mocks base method.
-func (m *MockQuerier) GetHistory(ctx context.Context, id int32) (sqlc.History, error) {
+func (m *MockQuerier) GetHistory(ctx context.Context, id int32) (db.History, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHistory", ctx, id)
-	ret0, _ := ret[0].(sqlc.History)
+	ret0, _ := ret[0].(db.History)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -257,10 +257,10 @@ func (mr *MockQuerierMockRecorder) GetHistory(ctx, id interface{}) *gomock.Call 
 }
 
 // GetOrder mocks base method.
-func (m *MockQuerier) GetOrder(ctx context.Context, id pgtype.UUID) (sqlc.Order, error) {
+func (m *MockQuerier) GetOrder(ctx context.Context, id pgtype.UUID) (db.Order, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOrder", ctx, id)
-	ret0, _ := ret[0].(sqlc.Order)
+	ret0, _ := ret[0].(db.Order)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -272,10 +272,10 @@ func (mr *MockQuerierMockRecorder) GetOrder(ctx, id interface{}) *gomock.Call {
 }
 
 // GetOrderItem mocks base method.
-func (m *MockQuerier) GetOrderItem(ctx context.Context, id int32) (sqlc.OrderItem, error) {
+func (m *MockQuerier) GetOrderItem(ctx context.Context, id int32) (db.OrderItem, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOrderItem", ctx, id)
-	ret0, _ := ret[0].(sqlc.OrderItem)
+	ret0, _ := ret[0].(db.OrderItem)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -287,10 +287,10 @@ func (mr *MockQuerierMockRecorder) GetOrderItem(ctx, id interface{}) *gomock.Cal
 }
 
 // GetOrderItemsByOrderID mocks base method.
-func (m *MockQuerier) GetOrderItemsByOrderID(ctx context.Context, orderID pgtype.UUID) ([]sqlc.OrderItem, error) {
+func (m *MockQuerier) GetOrderItemsByOrderID(ctx context.Context, orderID pgtype.UUID) ([]db.OrderItem, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOrderItemsByOrderID", ctx, orderID)
-	ret0, _ := ret[0].([]sqlc.OrderItem)
+	ret0, _ := ret[0].([]db.OrderItem)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -302,10 +302,10 @@ func (mr *MockQuerierMockRecorder) GetOrderItemsByOrderID(ctx, orderID interface
 }
 
 // GetOutboxEvent mocks base method.
-func (m *MockQuerier) GetOutboxEvent(ctx context.Context, id pgtype.UUID) (sqlc.OutboxEvent, error) {
+func (m *MockQuerier) GetOutboxEvent(ctx context.Context, id pgtype.UUID) (db.OutboxEvent, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOutboxEvent", ctx, id)
-	ret0, _ := ret[0].(sqlc.OutboxEvent)
+	ret0, _ := ret[0].(db.OutboxEvent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -317,10 +317,10 @@ func (mr *MockQuerierMockRecorder) GetOutboxEvent(ctx, id interface{}) *gomock.C
 }
 
 // GetPayment mocks base method.
-func (m *MockQuerier) GetPayment(ctx context.Context, id pgtype.UUID) (sqlc.Payment, error) {
+func (m *MockQuerier) GetPayment(ctx context.Context, id pgtype.UUID) (db.Payment, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPayment", ctx, id)
-	ret0, _ := ret[0].(sqlc.Payment)
+	ret0, _ := ret[0].(db.Payment)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -332,10 +332,10 @@ func (mr *MockQuerierMockRecorder) GetPayment(ctx, id interface{}) *gomock.Call 
 }
 
 // GetPaymentsByOrderID mocks base method.
-func (m *MockQuerier) GetPaymentsByOrderID(ctx context.Context, orderID pgtype.UUID) ([]sqlc.Payment, error) {
+func (m *MockQuerier) GetPaymentsByOrderID(ctx context.Context, orderID pgtype.UUID) ([]db.Payment, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPaymentsByOrderID", ctx, orderID)
-	ret0, _ := ret[0].([]sqlc.Payment)
+	ret0, _ := ret[0].([]db.Payment)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -347,10 +347,10 @@ func (mr *MockQuerierMockRecorder) GetPaymentsByOrderID(ctx, orderID interface{}
 }
 
 // GetPendingOutboxEvents mocks base method.
-func (m *MockQuerier) GetPendingOutboxEvents(ctx context.Context, limit int32) ([]sqlc.OutboxEvent, error) {
+func (m *MockQuerier) GetPendingOutboxEvents(ctx context.Context, limit int32) ([]db.OutboxEvent, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetPendingOutboxEvents", ctx, limit)
-	ret0, _ := ret[0].([]sqlc.OutboxEvent)
+	ret0, _ := ret[0].([]db.OutboxEvent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -376,10 +376,10 @@ func (mr *MockQuerierMockRecorder) IncrementRetryCount(ctx, id interface{}) *gom
 }
 
 // UpdateHistory mocks base method.
-func (m *MockQuerier) UpdateHistory(ctx context.Context, arg sqlc.UpdateHistoryParams) (sqlc.History, error) {
+func (m *MockQuerier) UpdateHistory(ctx context.Context, arg db.UpdateHistoryParams) (db.History, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateHistory", ctx, arg)
-	ret0, _ := ret[0].(sqlc.History)
+	ret0, _ := ret[0].(db.History)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -391,10 +391,10 @@ func (mr *MockQuerierMockRecorder) UpdateHistory(ctx, arg interface{}) *gomock.C
 }
 
 // UpdateOrder mocks base method.
-func (m *MockQuerier) UpdateOrder(ctx context.Context, arg sqlc.UpdateOrderParams) (sqlc.Order, error) {
+func (m *MockQuerier) UpdateOrder(ctx context.Context, arg db.UpdateOrderParams) (db.Order, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateOrder", ctx, arg)
-	ret0, _ := ret[0].(sqlc.Order)
+	ret0, _ := ret[0].(db.Order)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -406,10 +406,10 @@ func (mr *MockQuerierMockRecorder) UpdateOrder(ctx, arg interface{}) *gomock.Cal
 }
 
 // UpdateOrderItem mocks base method.
-func (m *MockQuerier) UpdateOrderItem(ctx context.Context, arg sqlc.UpdateOrderItemParams) (sqlc.OrderItem, error) {
+func (m *MockQuerier) UpdateOrderItem(ctx context.Context, arg db.UpdateOrderItemParams) (db.OrderItem, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateOrderItem", ctx, arg)
-	ret0, _ := ret[0].(sqlc.OrderItem)
+	ret0, _ := ret[0].(db.OrderItem)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -421,10 +421,10 @@ func (mr *MockQuerierMockRecorder) UpdateOrderItem(ctx, arg interface{}) *gomock
 }
 
 // UpdateOutboxEventStatus mocks base method.
-func (m *MockQuerier) UpdateOutboxEventStatus(ctx context.Context, arg sqlc.UpdateOutboxEventStatusParams) (sqlc.OutboxEvent, error) {
+func (m *MockQuerier) UpdateOutboxEventStatus(ctx context.Context, arg db.UpdateOutboxEventStatusParams) (db.OutboxEvent, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdateOutboxEventStatus", ctx, arg)
-	ret0, _ := ret[0].(sqlc.OutboxEvent)
+	ret0, _ := ret[0].(db.OutboxEvent)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -436,10 +436,10 @@ func (mr *MockQuerierMockRecorder) UpdateOutboxEventStatus(ctx, arg interface{})
 }
 
 // UpdatePayment mocks base method.
-func (m *MockQuerier) UpdatePayment(ctx context.Context, arg sqlc.UpdatePaymentParams) (sqlc.Payment, error) {
+func (m *MockQuerier) UpdatePayment(ctx context.Context, arg db.UpdatePaymentParams) (db.Payment, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "UpdatePayment", ctx, arg)
-	ret0, _ := ret[0].(sqlc.Payment)
+	ret0, _ := ret[0].(db.Payment)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

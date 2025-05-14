@@ -13,7 +13,11 @@ import (
 // ShutdownConfig — конфиг для graceful shutdown.
 type ShutdownConfig struct {
 	Timeout  time.Duration
-	Handlers []func()
+	Handlers []func() error
+}
+
+func NewShutDownConfig(timeout time.Duration, handlers ...func() error) *ShutdownConfig {
+	return &ShutdownConfig{timeout, handlers}
 }
 
 func WaitForShutdown(server *http.Server, cfg ShutdownConfig) {
@@ -34,7 +38,10 @@ func WaitForShutdown(server *http.Server, cfg ShutdownConfig) {
 	}
 
 	for _, handler := range cfg.Handlers {
-		handler()
+		err := handler()
+		if err != nil {
+			log.Printf("HTTP server shutdown error when running handlers: %v\n", err)
+		}
 	}
 
 	select {

@@ -24,6 +24,7 @@ type Querier interface {
 	DeletePayment(ctx context.Context, id pgtype.UUID) error
 	FetchOnePendingForUpdate(ctx context.Context) (OutboxEvent, error)
 	FetchOnePendingForUpdateWithID(ctx context.Context, id pgtype.UUID) (OutboxEvent, error)
+	GetAllInProgressOutboxEvents(ctx context.Context) ([]OutboxEvent, error)
 	GetHistoriesByOrderID(ctx context.Context, orderID pgtype.UUID) ([]History, error)
 	GetHistory(ctx context.Context, id int32) (History, error)
 	GetOrder(ctx context.Context, id pgtype.UUID) (Order, error)

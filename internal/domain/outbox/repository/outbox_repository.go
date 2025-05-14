@@ -22,6 +22,39 @@ func NewOutboxRepository(pool *pgxpool.Pool) OutboxRepository {
 	}
 }
 
+func (r *outboxRepository) GetAllInProgressEvents(ctx context.Context) ([]entity.OutboxEvent, error) {
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
+	events, err := query.GetAllInProgressOutboxEvents(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []entity.OutboxEvent
+	for _, event := range events {
+		// Преобразуем данные обратно в структуру домена
+		result = append(result, entity.OutboxEvent{
+			ID:            event.ID.Bytes,
+			AggregateType: event.AggregateType,
+			AggregateID:   event.AggregateID.Bytes,
+			EventType:     event.EventType,
+			Payload:       event.Payload,
+			Status:        event.Status,
+			RetryCount:    event.RetryCount.Int32,
+			CreatedAt:     event.CreatedAt.Time,
+			ProcessedAt:   event.ProcessedAt.Time,
+		})
+	}
+
+	return result, nil
+}
+
 func (r *outboxRepository) BatchPendingTasks(ctx context.Context, limit int) ([]entity.OutboxEvent, error) {
 	var query *db.Queries
 	if tx, ok := transactional.TxFromContext(ctx); ok {

@@ -20,6 +20,7 @@ type OutboxService interface {
 	BatchPendingTasks(ctx context.Context, limit int) ([]entity.OutboxEvent, error)
 	FetchOnePendingForUpdateWithID(ctx context.Context, id uuid.UUID) (entity.OutboxEvent, error)
 	IncrementRetryCount(ctx context.Context, id uuid.UUID) error
+	GetAllInProgressEvents(ctx context.Context) ([]entity.OutboxEvent, error)
 }
 
 type outboxService struct {
@@ -30,6 +31,9 @@ func NewOutboxService(repo repository.OutboxRepository) OutboxService {
 	return &outboxService{repo: repo}
 }
 
+func (s *outboxService) GetAllInProgressEvents(ctx context.Context) ([]entity.OutboxEvent, error) {
+	return s.repo.GetAllInProgressEvents(ctx)
+}
 func (s *outboxService) IncrementRetryCount(ctx context.Context, id uuid.UUID) error {
 	log.Println("entered outbox service")
 	return s.repo.IncrementRetryCount(ctx, id)

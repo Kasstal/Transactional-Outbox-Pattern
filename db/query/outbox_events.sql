@@ -11,6 +11,8 @@ SELECT * FROM outbox_events WHERE id = $1 LIMIT 1;
 
 -- name: GetPendingOutboxEvents :many
 SELECT * FROM outbox_events WHERE status = 'pending' LIMIT $1;
+-- name: GetAllInProgressOutboxEvents :many
+SELECT * FROM outbox_events WHERE status = 'in_progress';
 
 -- name: UpdateOutboxEventStatus :one
 UPDATE outbox_events

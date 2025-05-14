@@ -16,4 +16,5 @@ type OutboxRepository interface {
 	BatchPendingTasks(ctx context.Context, limit int) ([]entity.OutboxEvent, error)
 	FetchOnePendingForUpdateWithID(ctx context.Context, id uuid.UUID) (entity.OutboxEvent, error)
 	IncrementRetryCount(ctx context.Context, id uuid.UUID) error
+	GetAllInProgressEvents(ctx context.Context) ([]entity.OutboxEvent, error)
 }

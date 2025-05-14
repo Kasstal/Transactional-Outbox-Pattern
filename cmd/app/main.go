@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"log"
 	"net/http"
 	"orders-center/cmd/handler"
 	"orders-center/cmd/usecase"
@@ -32,7 +33,7 @@ func main() {
 
 	dsn := "postgres://root:secret@localhost:5432/db?sslmode=disable"
 
-	// Создаем конфигурацию пула соединений
+	// Pool config
 	cfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		panic(fmt.Errorf("db config parse error: %w", err))
@@ -43,7 +44,7 @@ func main() {
 	cfg.MaxConnIdleTime = 10 * time.Minute
 	cfg.MaxConnLifetime = 1 * time.Hour
 
-	// Создание пула соединений с настроенной конфигурацией
+	// Creating pool with config
 	pool, err := pgxpool.NewWithConfig(context.Background(), cfg)
 	if err != nil {
 		panic(fmt.Errorf("db connect: %w", err))
@@ -88,18 +89,23 @@ func main() {
 		orderFullService,
 		outboxService,
 	)
+	//Reset in_progress tasks
+	err = enoService.InitReset()
+	if err != nil {
+		log.Println("Couldn't reset 'in progress tasks'")
+	}
 
 	// ctx для graceful shutdown всех фоновых процессов
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// 3. Запуск фонового processing
+	// Запуск фонового processing
 	go enoService.Run(ctx)
 
 	r := gin.Default()
 	r.POST("/orders", orderHandler.CreateOrderFull)
 
-	// 4. Запуск HTTP-сервера с graceful
+	// Launch HTTP-server с graceful
 	srv := &http.Server{
 		Addr:    ":8080",
 		Handler: r,
@@ -113,6 +119,7 @@ func main() {
 	}()
 	go PostOrderFull(ctx)
 	<-ctx.Done()
+	//cfg := graceful.NewShutDownConfig(5*time.Second, enoService.Reset, enoService.Stop)
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -120,7 +127,9 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		fmt.Printf("HTTP shutdown error: %v\n", err)
 	}
-	enoService.Reset()
-
+	err = enoService.ShutdownReset()
+	if err != nil {
+		fmt.Println("Could not reset")
+	}
 	fmt.Println("Service stopped")
 }
