@@ -87,7 +87,7 @@ func (r *outboxRepository) BatchPendingTasks(ctx context.Context, limit int) ([]
 	return result, nil
 }
 
-func (r *outboxRepository) IncrementRetryCount(ctx context.Context, id uuid.UUID) error {
+func (r *outboxRepository) IncrementRetryCount(ctx context.Context, id uuid.UUID) (int32, error) {
 	var query *db.Queries
 	if tx, ok := transactional.TxFromContext(ctx); ok {
 		query = db.New(tx)
@@ -97,11 +97,11 @@ func (r *outboxRepository) IncrementRetryCount(ctx context.Context, id uuid.UUID
 	}
 
 	log.Println("entered outboxrepo")
-	err := query.IncrementRetryCount(ctx, utils.ToUUID(id))
+	retryCount, err := query.IncrementRetryCount(ctx, utils.ToUUID(id))
 	if err == nil {
 		log.Println("increased retry count")
 	}
-	return err
+	return retryCount.Int32, err
 }
 
 func (r *outboxRepository) FetchOnePendingForUpdateWithID(ctx context.Context, id uuid.UUID) (entity.OutboxEvent, error) {
@@ -176,13 +176,11 @@ func (r *outboxRepository) CreateEvent(ctx context.Context, event entity.OutboxE
 		RetryCount:    pgtype.Int4{int32(event.RetryCount), true},
 	}
 
-	// Вызов SQL-запроса
 	sqlEvent, err := query.CreateOutboxEvent(ctx, sqlArg)
 	if err != nil {
 		return entity.OutboxEvent{}, err
 	}
 
-	// Преобразуем данные обратно в структуру домена
 	return entity.OutboxEvent{
 		ID:            sqlEvent.ID.Bytes,
 		AggregateType: sqlEvent.AggregateType,
@@ -213,7 +211,7 @@ func (r *outboxRepository) GetPendingEvents(ctx context.Context, limit int) ([]e
 
 	var result []entity.OutboxEvent
 	for _, event := range events {
-		// Преобразуем данные обратно в структуру домена
+
 		result = append(result, entity.OutboxEvent{
 			ID:            event.ID.Bytes,
 			AggregateType: event.AggregateType,
@@ -245,13 +243,11 @@ func (r *outboxRepository) UpdateEventStatus(ctx context.Context, eventID uuid.U
 		Status: status,
 	}
 
-	// Выполняем SQL-запрос
 	sqlEvent, err := query.UpdateOutboxEventStatus(ctx, sqlArg)
 	if err != nil {
 		return entity.OutboxEvent{}, err
 	}
 
-	// Преобразуем данные обратно в структуру домена
 	return entity.OutboxEvent{
 		ID:            sqlEvent.ID.Bytes,
 		AggregateType: sqlEvent.AggregateType,

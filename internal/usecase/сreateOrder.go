@@ -2,13 +2,12 @@ package usecase
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	historyService "orders-center/internal/domain/history/service"
 	orderService "orders-center/internal/domain/order/service"
 	itemService "orders-center/internal/domain/order_item/service"
-	outboxSvc "orders-center/internal/domain/outbox/service"
 	paymentService "orders-center/internal/domain/payment/service"
+	"orders-center/internal/service/order_eno_1c"
 	"orders-center/internal/service/order_full/entity"
 	transactional "orders-center/internal/service/transactional"
 )
@@ -18,28 +17,28 @@ type UseCase interface {
 }
 
 type CreateOrderUseCase struct {
+	enoService     *order_eno_1c.OrderEno1c
 	orderService   orderService.OrderService
 	itemService    itemService.OrderItemService
 	paymentService paymentService.PaymentService
 	historyService historyService.HistoryService
-	outboxService  outboxSvc.OutboxService
 	txService      transactional.Transactional
 }
 
 func NewCreateOrderUseCase(
+	enoService *order_eno_1c.OrderEno1c,
 	orderService orderService.OrderService,
 	itemService itemService.OrderItemService,
 	paymentService paymentService.PaymentService,
 	historyService historyService.HistoryService,
-	outboxService outboxSvc.OutboxService,
 	txService transactional.Transactional,
 ) UseCase {
 	return &CreateOrderUseCase{
+		enoService:     enoService,
 		orderService:   orderService,
 		itemService:    itemService,
 		paymentService: paymentService,
 		historyService: historyService,
-		outboxService:  outboxService,
 		txService:      txService,
 	}
 }
@@ -75,25 +74,11 @@ func (s *CreateOrderUseCase) Create(ctx context.Context, orderFull entity.OrderF
 			}
 		}
 
-		eventData := map[string]interface{}{
-			"order_id": orderFull.Order.ID,
-		}
-		payload, err := json.Marshal(eventData)
+		err := s.enoService.CreateOutboxTask(ctx, orderFull.Order.ID)
 		if err != nil {
 			log.Println(err)
 			return err
 		}
-		// Add event в Outbox
-		if err := s.outboxService.AddNewEvent(ctx, outboxSvc.AddEventParams{
-			AggregateType: "OrderFull",
-			AggregateID:   orderFull.Order.ID,
-			EventType:     "OrderCreated",
-			Payload:       payload,
-		}); err != nil {
-			log.Println(err)
-			return err
-		}
-
 		return nil
 	})
 

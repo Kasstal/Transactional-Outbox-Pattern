@@ -208,7 +208,9 @@ func (q *Queries) GetOutboxEvent(ctx context.Context, id pgtype.UUID) (OutboxEve
 }
 
 const getPendingOutboxEvents = `-- name: GetPendingOutboxEvents :many
-SELECT id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, created_at, processed_at FROM outbox_events WHERE status = 'pending' FOR UPDATE SKIP LOCKED LIMIT $1
+SELECT id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, created_at, processed_at FROM outbox_events WHERE status = 'pending'
+                            FOR UPDATE SKIP LOCKED
+                             LIMIT $1
 `
 
 func (q *Queries) GetPendingOutboxEvents(ctx context.Context, limit int32) ([]OutboxEvent, error) {
@@ -241,16 +243,18 @@ func (q *Queries) GetPendingOutboxEvents(ctx context.Context, limit int32) ([]Ou
 	return items, nil
 }
 
-const incrementRetryCount = `-- name: IncrementRetryCount :exec
+const incrementRetryCount = `-- name: IncrementRetryCount :one
 UPDATE outbox_events
 SET retry_count = retry_count + 1,
     status = 'pending'
-WHERE id = $1
+WHERE id = $1 RETURNING retry_count
 `
 
-func (q *Queries) IncrementRetryCount(ctx context.Context, id pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, incrementRetryCount, id)
-	return err
+func (q *Queries) IncrementRetryCount(ctx context.Context, id pgtype.UUID) (pgtype.Int4, error) {
+	row := q.db.QueryRow(ctx, incrementRetryCount, id)
+	var retry_count pgtype.Int4
+	err := row.Scan(&retry_count)
+	return retry_count, err
 }
 
 const updateOutboxEventStatus = `-- name: UpdateOutboxEventStatus :one

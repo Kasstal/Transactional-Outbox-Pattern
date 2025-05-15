@@ -2,9 +2,10 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
+	"log"
 	"net/http"
-	"orders-center/cmd/usecase"
 	orderFull "orders-center/internal/service/order_full/entity"
+	"orders-center/internal/usecase"
 )
 
 type OrderHandler struct {
@@ -29,7 +30,6 @@ func (h *OrderHandler) CreateOrderFull(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create order"})
 		return
 	}
-
-	// 4. Отправляем успешный ответ
+	log.Println("Successfully accepted full order ")
 	c.Status(http.StatusCreated)
 }

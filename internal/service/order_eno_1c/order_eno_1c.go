@@ -1,18 +1,17 @@
 package order_eno_1c
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/gofrs/uuid"
 	"log"
 	"net/http"
+	"orders-center/internal/client"
 	inboxSvc "orders-center/internal/domain/inbox/service"
 	outbox "orders-center/internal/domain/outbox/entity"
 	outboxService "orders-center/internal/domain/outbox/service"
 	"orders-center/internal/service/cron"
-	orderFull "orders-center/internal/service/order_full/entity"
 	orderFullService "orders-center/internal/service/order_full/order_full_service"
 	transactional "orders-center/internal/service/transactional"
 	"time"
@@ -24,15 +23,22 @@ type OrderEno1c struct {
 	outboxService        outboxService.OutboxService
 	inboxService         inboxSvc.InboxService
 	orderFullService     orderFullService.OrderFullService
+	client               *client.Client
+	retryMax             int32
 }
 
-func NewOrderEno1c(cron cron.Cron,
+func NewOrderEno1c(
+	cron cron.Cron,
 	transactionalService transactional.Transactional,
 	orderFullService orderFullService.OrderFullService,
 	outboxService outboxService.OutboxService,
 	inboxService inboxSvc.InboxService,
+	client *client.Client,
+	retryMax int32,
 ) *OrderEno1c {
 	return &OrderEno1c{
+		client:               client,
+		retryMax:             retryMax,
 		inboxService:         inboxService,
 		outboxService:        outboxService,
 		orderFullService:     orderFullService,
@@ -43,7 +49,7 @@ func NewOrderEno1c(cron cron.Cron,
 
 func (o *OrderEno1c) Run(ctx context.Context) {
 	o.cron.AddJob("Fetch batch", o.getPendingTasks, 1*time.Millisecond)
-	o.cron.AddProcessor(o.processTask, 6*time.Second)
+	o.cron.AddProcessor(o.processTask, 100*time.Minute)
 	o.cron.Start(ctx)
 }
 
@@ -83,45 +89,47 @@ func (o *OrderEno1c) processTask(ctx context.Context, task cron.Task) error {
 			log.Println("Error fetching task:", err, "In Worker: ", id)
 			return err
 		}
-
-		err = o.outboxService.MarkEventProcessed(ctx, outboxTask.ID)
-		if err != nil {
-			log.Println("Error adding processed to ", err, "In Worker: ", id)
-		}
+		//CHECK IF THIS EVENT WAS ALREADY PROCESSED AND SENT
 		if o.checkProcessed(ctx, sqlc.ID) {
-			return fmt.Errorf("task id %d is already processed", outboxTask.ID, "In Worker: ", id)
+			return fmt.Errorf("task id %d is already processed In Worker: %d", outboxTask.ID, id)
 		}
 
-		//mark event processed in outbox
+		//MARK EVENT PROCESSED SO THAT NEXT BATCH WILL NOT POLL IT
 		if err = o.outboxService.MarkEventProcessed(ctx, outboxTask.ID); err != nil {
 			return err
 		}
-
+		//RETRIEVE ORDER FULL
 		orderFull, err := o.orderFullService.GetOrderFull(ctx, outboxTask.AggregateID)
-		log.Printf("Order Full : %v in Worker %d", orderFull.Order.ID, id)
+		log.Printf("Order Full : %v In Worker %d", orderFull.Order.ID, id)
 		if err != nil {
 			log.Println("Could not get OrderFull: ", err)
 			//Increment try count
-			incrementErr := o.outboxService.IncrementRetryCount(ctx, outboxTask.ID)
+			incrementErr := o.incrementOrFail(ctx, outboxTask.ID)
 			if incrementErr != nil {
-				return fmt.Errorf("Could not increment retry count: %v", incrementErr)
+				return fmt.Errorf("could not get OrderFull : %v Increment err: %v In Worker: %d", err, incrementErr, id)
 			}
-			log.Printf("Could not get OrderFull: %v", err, incrementErr)
 			return nil
 		}
 
-		if err = PostOrderFull(orderFull); err != nil {
-			log.Printf("Could not Post OrderFull: %v", err)
-		}
-		if err != nil {
-			incrementErr := o.outboxService.IncrementRetryCount(ctx, outboxTask.ID)
+		//SENDING TO MOCK1C
+		resp, err := o.client.SendRequest("orders", "POST", orderFull)
+		if resp == nil {
+			incrementErr := o.incrementOrFail(ctx, outboxTask.ID)
 			if incrementErr != nil {
-				return fmt.Errorf("Could not increment retry count: %v", incrementErr)
+				return fmt.Errorf("could POST OrderFull : %v Increment err: %v In Worker: %d", err, incrementErr, id)
 			}
-			log.Printf("Could not get OrderFull: %v", err)
 			return nil
 		}
-		//Create processed record in inbox
+		if resp.StatusCode != http.StatusCreated || err != nil {
+			log.Printf("Could not Post OrderFull: %v in Worker:%d", err, id)
+			incrementErr := o.incrementOrFail(ctx, outboxTask.ID)
+			if incrementErr != nil {
+				return fmt.Errorf("could POST OrderFull : %v Increment err: %v In Worker: %d", err, incrementErr, id)
+			}
+
+			return nil
+		}
+		//CREATE NEW TASK PROCESSED RECORD IN INBOX
 		_, err = o.inboxService.Create(ctx, sqlc.ID)
 		if err != nil {
 			return err
@@ -134,12 +142,28 @@ func (o *OrderEno1c) processTask(ctx context.Context, task cron.Task) error {
 	return err
 }
 
+func (o *OrderEno1c) incrementOrFail(ctx context.Context, id uuid.UUID) error {
+	retryCount, incrementErr := o.outboxService.IncrementRetryCount(ctx, id)
+	if incrementErr != nil {
+		return fmt.Errorf("could not increment retry count: %v", incrementErr)
+	}
+
+	//failed
+	if retryCount >= o.retryMax {
+		_, err := o.outboxService.UpdateEventStatus(ctx, id, "failed")
+		if err != nil {
+			return fmt.Errorf("could not update event status to failed: %v", err)
+		}
+	}
+	return nil
+}
+
 func (o *OrderEno1c) Stop() error {
 	o.cron.Stop()
 	return nil
 }
 
-func PostOrderFull(orderFull orderFull.OrderFull) error {
+/*func PostOrderFull(orderFull orderFullEntity.OrderFull) error {
 	data, err := json.Marshal(orderFull)
 	if err != nil {
 		return err
@@ -163,13 +187,37 @@ func PostOrderFull(orderFull orderFull.OrderFull) error {
 	}
 
 	if resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("invalid status code: %d", resp.StatusCode)
 		log.Printf("server returned non-created status: %v", resp.Status)
+		return fmt.Errorf("invalid status code: %d", resp.StatusCode)
+
 	}
 
 	log.Println("Order successfully posted!")
 	resp.Body.Close()
 
+	return nil
+}*/
+
+func (o *OrderEno1c) CreateOutboxTask(ctx context.Context, orderID uuid.UUID) error {
+
+	eventData := map[string]interface{}{
+		"order_id": orderID,
+	}
+	payload, err := json.Marshal(eventData)
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+	// Add event в Outbox
+	if err = o.outboxService.AddNewEvent(ctx, outboxService.AddEventParams{
+		AggregateType: "OrderFull",
+		AggregateID:   orderID,
+		EventType:     "OrderCreated",
+		Payload:       payload,
+	}); err != nil {
+		log.Println(err)
+		return err
+	}
 	return nil
 }
 

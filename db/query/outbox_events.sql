@@ -10,7 +10,9 @@ INSERT INTO outbox_events (
 SELECT * FROM outbox_events WHERE id = $1 LIMIT 1;
 
 -- name: GetPendingOutboxEvents :many
-SELECT * FROM outbox_events WHERE status = 'pending' FOR UPDATE SKIP LOCKED LIMIT $1;
+SELECT * FROM outbox_events WHERE status = 'pending'
+                            FOR UPDATE SKIP LOCKED
+                             LIMIT $1;
 -- name: GetAllInProgressOutboxEvents :many
 SELECT * FROM outbox_events WHERE status = 'in_progress';
 
@@ -51,8 +53,8 @@ RETURNING *;
 
 
 
--- name: IncrementRetryCount :exec
+-- name: IncrementRetryCount :one
 UPDATE outbox_events
 SET retry_count = retry_count + 1,
     status = 'pending'
-WHERE id = $1;
+WHERE id = $1 RETURNING retry_count;

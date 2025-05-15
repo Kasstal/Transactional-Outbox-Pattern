@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"log"
 	"net/http"
-	"orders-center/cmd/handler"
-	"orders-center/cmd/usecase"
+	client "orders-center/internal/client"
 	historyRepo "orders-center/internal/domain/history/repository"
 	historySvc "orders-center/internal/domain/history/service"
 	inboxRepo "orders-center/internal/domain/inbox/repository"
@@ -21,10 +19,12 @@ import (
 	outboxSvc "orders-center/internal/domain/outbox/service"
 	paymentRepo "orders-center/internal/domain/payment/repository"
 	paymentSvc "orders-center/internal/domain/payment/service"
+	"orders-center/internal/handler"
 	"orders-center/internal/service/cron"
 	"orders-center/internal/service/order_eno_1c"
 	orderFullSvc "orders-center/internal/service/order_full/order_full_service"
 	transactional "orders-center/internal/service/transactional"
+	"orders-center/internal/usecase"
 	"os"
 	"os/signal"
 	"syscall"
@@ -69,36 +69,41 @@ func main() {
 	//transactional
 	txService := transactional.NewTransactionService(pool)
 
-	// Usecase
-	createOrderUC := usecase.NewCreateOrderUseCase(
-		orderService,
-		orderItemService,
-		paymentService,
-		historyService,
-		outboxService,
-		txService,
-	)
-
 	//orderfull service
 	orderFullService := orderFullSvc.NewOrderFullService(orderService, orderItemService, paymentService, historyService, outboxService)
 
-	//handler
-	orderHandler := handler.NewOrderHandler(createOrderUC)
+	//HTTP CLIENT
+	clientCfg := client.ClientConfig{
+		BaseURL: "http://localhost:1234",
+		Timeout: 5 * time.Second,
+	}
+
+	clientForEno := client.NewClient(clientCfg)
 
 	// 3. Cron + order_eno_1c
-	cronScheduler := cron.NewScheduler(2)
+	cronScheduler := cron.NewScheduler(5)
 	enoService := order_eno_1c.NewOrderEno1c(
 		cronScheduler,
 		txService,
 		orderFullService,
 		outboxService,
 		inboxService,
+		clientForEno,
+		3,
 	)
-	//Reset in_progress tasks
 
-	if err != nil {
-		log.Println("Couldn't reset 'in progress tasks'")
-	}
+	// Usecase
+	createOrderUC := usecase.NewCreateOrderUseCase(
+		enoService,
+		orderService,
+		orderItemService,
+		paymentService,
+		historyService,
+		txService,
+	)
+
+	//handler
+	orderHandler := handler.NewOrderHandler(createOrderUC)
 
 	// ctx для graceful shutdown всех фоновых процессов
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -122,19 +127,16 @@ func main() {
 			stop()
 		}
 	}()
-	go PostOrderFull(ctx)
+	//go PostOrderFull(ctx)
 	<-ctx.Done()
 	//cfg := graceful.NewShutDownConfig(5*time.Second, enoService.Reset, enoService.Stop)
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	fmt.Println("Shutting down HTTP server…")
-	if err := srv.Shutdown(shutdownCtx); err != nil {
+	if err = srv.Shutdown(shutdownCtx); err != nil {
 		fmt.Printf("HTTP shutdown error: %v\n", err)
 	}
 
-	if err != nil {
-		fmt.Println("Could not reset")
-	}
 	fmt.Println("Service stopped")
 }

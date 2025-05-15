@@ -99,6 +99,7 @@ func (s *Scheduler) worker(ctx context.Context, workerID int) {
 		case task := <-s.taskChan:
 			log.Println("worker", workerID, "starts processing task ", task.ID)
 			ctxID := context.WithValue(ctx, "id", workerID)
+			//time.Sleep(100 * time.Second)
 			err := s.processor(ctxID, task)
 			if err != nil {
 				log.Printf("Worker %d did not compelete processing task %v , err: %v", workerID, task.ID, err.Error())

@@ -42,7 +42,8 @@ func PostOrderFull(ctx context.Context) {
 			resp.Body.Close()
 
 		}
-		time.Sleep(4000 * time.Millisecond)
+		time.Sleep(1 * time.Millisecond)
+		//time.Sleep(10 * time.Second)
 	}
 
 }
