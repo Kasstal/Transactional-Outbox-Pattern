@@ -122,7 +122,7 @@ func main() {
 			stop()
 		}
 	}()
-	//go PostOrderFull(ctx)
+	go PostOrderFull(ctx)
 	<-ctx.Done()
 	//cfg := graceful.NewShutDownConfig(5*time.Second, enoService.Reset, enoService.Stop)
 

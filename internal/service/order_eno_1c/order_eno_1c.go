@@ -76,6 +76,7 @@ func (o *OrderEno1c) processTask(ctx context.Context, task cron.Task) error {
 		outboxTask := task.Data.(outbox.OutboxEvent)
 		//GET LOCK NOWAIT
 		sqlc, err := o.outboxService.FetchOnePendingForUpdateWithID(ctx, outboxTask.ID)
+
 		log.Printf("Worker %d FETCHED TASK : %v", id, task.ID)
 		if err != nil {
 
@@ -83,15 +84,13 @@ func (o *OrderEno1c) processTask(ctx context.Context, task cron.Task) error {
 			return err
 		}
 
+		err = o.outboxService.MarkEventProcessed(ctx, outboxTask.ID)
+		if err != nil {
+			log.Println("Error adding processed to ", err, "In Worker: ", id)
+		}
 		if o.checkProcessed(ctx, sqlc.ID) {
 			return fmt.Errorf("task id %d is already processed", outboxTask.ID, "In Worker: ", id)
 		}
-		//Create processed record in inbox
-		_, err = o.inboxService.Create(ctx, sqlc.ID)
-		if err != nil {
-			return err
-		}
-		log.Println("added processed task id into INBOX: ", sqlc.ID)
 
 		//mark event processed in outbox
 		if err = o.outboxService.MarkEventProcessed(ctx, outboxTask.ID); err != nil {
@@ -122,6 +121,12 @@ func (o *OrderEno1c) processTask(ctx context.Context, task cron.Task) error {
 			log.Printf("Could not get OrderFull: %v", err)
 			return nil
 		}
+		//Create processed record in inbox
+		_, err = o.inboxService.Create(ctx, sqlc.ID)
+		if err != nil {
+			return err
+		}
+		log.Println("added processed task id into INBOX: ", sqlc.ID)
 		log.Println("processed: ", outboxTask.ID, "in Worker: ", id)
 		return nil
 	})
