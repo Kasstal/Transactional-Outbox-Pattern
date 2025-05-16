@@ -27,7 +27,7 @@ func (h *OrderHandler) CreateOrderFull(c *gin.Context) {
 	//validation
 
 	if err := h.usecase.Create(c.Request.Context(), orderFull); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create order"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	log.Println("Successfully accepted full order ")

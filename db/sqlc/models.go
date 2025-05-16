@@ -69,6 +69,7 @@ type OutboxEvent struct {
 	RetryCount    pgtype.Int4        `json:"retry_count"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	ProcessedAt   pgtype.Timestamptz `json:"processed_at"`
+	ErrorMessage  pgtype.Text        `json:"error_message"`
 }
 
 type Payment struct {

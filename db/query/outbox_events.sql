@@ -51,10 +51,18 @@ WHERE id IN (SELECT id FROM batch)
 RETURNING *;
 
 
+-- name: MarkEventError :exec
+UPDATE outbox_events
+SET
+    status = 'failed',
+    error_message = $2,
+    processed_at = NOW()
+WHERE id = $1;
 
 
 -- name: IncrementRetryCount :one
 UPDATE outbox_events
 SET retry_count = retry_count + 1,
-    status = 'pending'
+    status = 'pending',
+    error_message = $2
 WHERE id = $1 RETURNING retry_count;

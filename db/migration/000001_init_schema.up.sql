@@ -58,7 +58,8 @@ CREATE TABLE "outbox_events" (
                                  "status" varchar(20) NOT NULL DEFAULT 'pending',
                                  "retry_count" integer DEFAULT 0,
                                  "created_at" timestamptz NOT NULL DEFAULT (now()),
-                                 "processed_at" timestamptz
+                                 "processed_at" timestamptz,
+                                 "error_message" varchar(400)
 );
 CREATE TABLE "history" (
                            "id" serial PRIMARY KEY,

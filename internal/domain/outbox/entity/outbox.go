@@ -15,4 +15,5 @@ type OutboxEvent struct {
 	RetryCount    int32     `json:"retry_count"`    // Количество попыток
 	CreatedAt     time.Time `json:"created_at"`
 	ProcessedAt   time.Time `json:"processed_at,omitempty"` // Время обработки
+	ErrorMessage  string    `json:"error_message,omitempty"`
 }

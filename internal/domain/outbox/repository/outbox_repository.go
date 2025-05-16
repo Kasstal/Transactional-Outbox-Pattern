@@ -22,6 +22,28 @@ func NewOutboxRepository(pool *pgxpool.Pool) OutboxRepository {
 	}
 }
 
+func (r *outboxRepository) MarkStatusFailed(ctx context.Context, id uuid.UUID, errorMsg string) error {
+	var query *db.Queries
+	if tx, ok := transactional.TxFromContext(ctx); ok {
+		query = db.New(tx)
+
+	} else {
+		query = db.New(r.pool)
+	}
+
+	params := db.MarkEventErrorParams{
+		ID:           pgtype.UUID{Bytes: id, Valid: true},
+		ErrorMessage: pgtype.Text{String: errorMsg, Valid: true},
+	}
+
+	err := query.MarkEventError(ctx, params)
+	if err != nil {
+		return err
+	}
+	return nil
+
+}
+
 func (r *outboxRepository) GetAllInProgressEvents(ctx context.Context) ([]entity.OutboxEvent, error) {
 	var query *db.Queries
 	if tx, ok := transactional.TxFromContext(ctx); ok {
@@ -49,6 +71,7 @@ func (r *outboxRepository) GetAllInProgressEvents(ctx context.Context) ([]entity
 			RetryCount:    event.RetryCount.Int32,
 			CreatedAt:     event.CreatedAt.Time,
 			ProcessedAt:   event.ProcessedAt.Time,
+			ErrorMessage:  event.ErrorMessage.String,
 		})
 	}
 
@@ -82,12 +105,13 @@ func (r *outboxRepository) BatchPendingTasks(ctx context.Context, limit int) ([]
 			RetryCount:    event.RetryCount.Int32,
 			CreatedAt:     event.CreatedAt.Time,
 			ProcessedAt:   event.ProcessedAt.Time,
+			ErrorMessage:  event.ErrorMessage.String,
 		})
 	}
 	return result, nil
 }
 
-func (r *outboxRepository) IncrementRetryCount(ctx context.Context, id uuid.UUID) (int32, error) {
+func (r *outboxRepository) IncrementRetryCount(ctx context.Context, id uuid.UUID, errMsg string) (int32, error) {
 	var query *db.Queries
 	if tx, ok := transactional.TxFromContext(ctx); ok {
 		query = db.New(tx)
@@ -97,7 +121,12 @@ func (r *outboxRepository) IncrementRetryCount(ctx context.Context, id uuid.UUID
 	}
 
 	log.Println("entered outboxrepo")
-	retryCount, err := query.IncrementRetryCount(ctx, utils.ToUUID(id))
+	params := db.IncrementRetryCountParams{
+		ID:           pgtype.UUID{Bytes: id, Valid: true},
+		ErrorMessage: pgtype.Text{String: errMsg, Valid: true},
+	}
+
+	retryCount, err := query.IncrementRetryCount(ctx, params)
 	if err == nil {
 		log.Println("increased retry count")
 	}
@@ -127,6 +156,7 @@ func (r *outboxRepository) FetchOnePendingForUpdateWithID(ctx context.Context, i
 		RetryCount:    event.RetryCount.Int32,
 		CreatedAt:     event.CreatedAt.Time,
 		ProcessedAt:   event.ProcessedAt.Time,
+		ErrorMessage:  event.ErrorMessage.String,
 	}, nil
 }
 
@@ -153,6 +183,7 @@ func (r *outboxRepository) FetchOnePendingForUpdate(ctx context.Context) (entity
 		RetryCount:    event.RetryCount.Int32,
 		CreatedAt:     event.CreatedAt.Time,
 		ProcessedAt:   event.ProcessedAt.Time,
+		ErrorMessage:  event.ErrorMessage.String,
 	}, nil
 
 }
@@ -222,6 +253,7 @@ func (r *outboxRepository) GetPendingEvents(ctx context.Context, limit int) ([]e
 			RetryCount:    event.RetryCount.Int32,
 			CreatedAt:     event.CreatedAt.Time,
 			ProcessedAt:   event.ProcessedAt.Time,
+			ErrorMessage:  event.ErrorMessage.String,
 		})
 	}
 
@@ -258,6 +290,7 @@ func (r *outboxRepository) UpdateEventStatus(ctx context.Context, eventID uuid.U
 		RetryCount:    sqlEvent.RetryCount.Int32,
 		CreatedAt:     sqlEvent.CreatedAt.Time,
 		ProcessedAt:   sqlEvent.ProcessedAt.Time,
+		ErrorMessage:  sqlEvent.ErrorMessage.String,
 	}, nil
 }
 

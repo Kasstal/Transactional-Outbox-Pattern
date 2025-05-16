@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"net/http"
+	"log"
+	"orders-center/cmd/router"
+	"orders-center/cmd/server"
 	client "orders-center/internal/client"
 	historyRepo "orders-center/internal/domain/history/repository"
 	historySvc "orders-center/internal/domain/history/service"
@@ -25,15 +26,23 @@ import (
 	orderFullSvc "orders-center/internal/service/order_full/order_full_service"
 	transactional "orders-center/internal/service/transactional"
 	"orders-center/internal/usecase"
-	"os"
+	"orders-center/internal/utils"
 	"os/signal"
 	"syscall"
 	"time"
 )
 
+const ConfigPath = "."
+
 func main() {
 
-	dsn := "postgres://root:secret@localhost:5432/db?sslmode=disable"
+	config, err := utils.LoadConfig(ConfigPath)
+	if err != nil {
+		log.Fatal("cannot load config: ", err)
+		return
+	}
+
+	dsn := config.DBSource
 
 	// Pool config
 	cfg, err := pgxpool.ParseConfig(dsn)
@@ -59,6 +68,7 @@ func main() {
 	outboxRepository := outboxRepo.NewOutboxRepository(pool)
 	paymentRepository := paymentRepo.NewPaymentRepository(pool)
 	inboxRepository := inboxRepo.NewInboxRepository(pool)
+
 	inboxService := inboxSvc.NewInboxService(inboxRepository)
 	orderService := orderSvc.NewOrderService(orderRepository)
 	orderItemService := itemSvc.NewOrderItemService(itemRepository)
@@ -74,14 +84,13 @@ func main() {
 
 	//HTTP CLIENT
 	clientCfg := client.ClientConfig{
-		BaseURL: "http://localhost:1234",
+		BaseURL: config.MOCK1CAddress,
 		Timeout: 5 * time.Second,
 	}
-
 	clientForEno := client.NewClient(clientCfg)
 
 	// 3. Cron + order_eno_1c
-	cronScheduler := cron.NewScheduler(5)
+	cronScheduler := cron.NewScheduler(config.CronWorkerCount, config.CronBatchSize)
 	enoService := order_eno_1c.NewOrderEno1c(
 		cronScheduler,
 		txService,
@@ -89,7 +98,7 @@ func main() {
 		outboxService,
 		inboxService,
 		clientForEno,
-		3,
+		config,
 	)
 
 	// Usecase
@@ -102,41 +111,53 @@ func main() {
 		txService,
 	)
 
-	//handler
-	orderHandler := handler.NewOrderHandler(createOrderUC)
-
 	// ctx для graceful shutdown всех фоновых процессов
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	defer stop()
 
 	// Запуск фонового processing
 	go enoService.Run(ctx)
 
-	r := gin.Default()
-	r.POST("/orders", orderHandler.CreateOrderFull)
+	//API handler
+	handler := handler.NewOrderHandler(createOrderUC)
 
-	// Launch HTTP-server с graceful
-	srv := &http.Server{
-		Addr:    ":8080",
-		Handler: r,
-	}
-	go func() {
-		fmt.Println("Gin server listening on :8080")
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("Gin serve error: %v\n", err)
-			stop()
-		}
-	}()
-	//go PostOrderFull(ctx)
+	//Setup Router
+	r := router.NewRouter(handler)
+	router := r.InitRouter("/orders")
+	//http server
+
+	server := server.NewServer(config, router)
+	server.Run()
+	go PostOrderFull(ctx)
 	<-ctx.Done()
-	//cfg := graceful.NewShutDownConfig(5*time.Second, enoService.Reset, enoService.Stop)
+	server.Shutdown()
 
+	fmt.Println("Service stopped")
+}
+
+/////////////////////////////////////////////////
+
+/* Launch HTTP-server с graceful
+srv := &http.Server{
+	Addr:    config.ServerAddress,
+	Handler: router,
+}
+go func() {
+	fmt.Printf("Gin server listening on %s", config.ServerAddress)
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		fmt.Printf("Gin serve error: %v\n", err)
+		stop()
+	}
+}()
+
+<-ctx.Done()*/
+
+/*
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	fmt.Println("Shutting down HTTP server…")
 	if err = srv.Shutdown(shutdownCtx); err != nil {
 		fmt.Printf("HTTP shutdown error: %v\n", err)
 	}
-
-	fmt.Println("Service stopped")
-}
+*/

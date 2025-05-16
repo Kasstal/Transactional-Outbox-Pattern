@@ -36,7 +36,8 @@ type Querier interface {
 	GetPaymentsByOrderID(ctx context.Context, orderID pgtype.UUID) ([]Payment, error)
 	GetPendingOutboxEvents(ctx context.Context, limit int32) ([]OutboxEvent, error)
 	GetProcessedEvent(ctx context.Context, eventID pgtype.UUID) (pgtype.UUID, error)
-	IncrementRetryCount(ctx context.Context, id pgtype.UUID) (pgtype.Int4, error)
+	IncrementRetryCount(ctx context.Context, arg IncrementRetryCountParams) (pgtype.Int4, error)
+	MarkEventError(ctx context.Context, arg MarkEventErrorParams) error
 	UpdateHistory(ctx context.Context, arg UpdateHistoryParams) (History, error)
 	UpdateOrder(ctx context.Context, arg UpdateOrderParams) (Order, error)
 	UpdateOrderItem(ctx context.Context, arg UpdateOrderItemParams) (OrderItem, error)
