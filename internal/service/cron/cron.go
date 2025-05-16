@@ -74,17 +74,6 @@ func (s *Scheduler) Start(ctx context.Context) {
 	}
 }
 
-/*func (s *Scheduler) AddFunc(name string, f func(ctx context.Context) error, interval time.Duration, deadline time.Duration) {
-	newJob := Job{
-		name:     name,
-		job:      f,
-		interval: interval,
-		deadline: deadline,
-	}
-
-	s.jobs = append(s.jobs, newJob)
-}*/
-
 func (s *Scheduler) scheduleJob(ctx context.Context, job Job) {
 	defer s.wg.Done()
 	ticker := time.NewTicker(job.interval)
@@ -94,8 +83,10 @@ func (s *Scheduler) scheduleJob(ctx context.Context, job Job) {
 
 			return
 		case <-ticker.C:
+			jobTimeout, cancel := context.WithTimeout(ctx, 1*time.Second)
+			defer cancel()
 			log.Println("Starting ", job.name)
-			job.f(ctx, s.taskChan)
+			job.f(jobTimeout, s.taskChan)
 		}
 	}
 }
@@ -128,3 +119,14 @@ func (s *Scheduler) Stop() {
 	close(s.stopChan)
 	s.wg.Wait()
 }
+
+/*func (s *Scheduler) AddFunc(name string, f func(ctx context.Context) error, interval time.Duration, deadline time.Duration) {
+	newJob := Job{
+		name:     name,
+		job:      f,
+		interval: interval,
+		deadline: deadline,
+	}
+
+	s.jobs = append(s.jobs, newJob)
+}*/

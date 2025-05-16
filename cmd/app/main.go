@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
-	"orders-center/cmd/router"
-	"orders-center/cmd/server"
 	client "orders-center/internal/client"
 	historyRepo "orders-center/internal/domain/history/repository"
 	historySvc "orders-center/internal/domain/history/service"
@@ -21,6 +19,8 @@ import (
 	paymentRepo "orders-center/internal/domain/payment/repository"
 	paymentSvc "orders-center/internal/domain/payment/service"
 	"orders-center/internal/handler"
+	"orders-center/internal/router"
+	"orders-center/internal/server"
 	"orders-center/internal/service/cron"
 	"orders-center/internal/service/order_eno_1c"
 	orderFullSvc "orders-center/internal/service/order_full/order_full_service"
@@ -129,8 +129,12 @@ func main() {
 
 	server := server.NewServer(config, router)
 	server.Run()
-	//go PostOrderFull(ctx)
+	go PostOrderFull(ctx)
 	<-ctx.Done()
+	err = enoService.Stop()
+	if err != nil {
+		log.Fatal("could not stop workers")
+	}
 	server.Shutdown()
 
 	fmt.Println("Service stopped")

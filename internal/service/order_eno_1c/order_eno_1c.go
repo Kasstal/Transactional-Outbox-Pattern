@@ -25,6 +25,7 @@ type OrderEno1c struct {
 	inboxService         inboxSvc.InboxService
 	orderFullService     orderFullService.OrderFullService
 	client               *client.Client
+	batchSize            int
 	retryMax             int32
 	pollerInterval       time.Duration
 	workerTimeout        time.Duration
@@ -40,6 +41,7 @@ func NewOrderEno1c(
 	config utils.Config,
 ) *OrderEno1c {
 	return &OrderEno1c{
+		batchSize:            config.CronBatchSize,
 		client:               client,
 		retryMax:             config.MaxRetries,
 		pollerInterval:       config.JobInterval,
@@ -60,7 +62,7 @@ func (o *OrderEno1c) Run(ctx context.Context) {
 
 func (o *OrderEno1c) getPendingTasks(ctx context.Context, taskChan chan<- cron.Task) {
 	err := o.transactionalService.ExecTx(ctx, func(ctx context.Context) error {
-		batch, err := o.outboxService.GetPendingEvents(ctx, 2)
+		batch, err := o.outboxService.GetPendingEvents(ctx, 50)
 		if err != nil {
 			log.Print(err)
 			return err
