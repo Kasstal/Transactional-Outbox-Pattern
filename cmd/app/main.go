@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log"
+	"orders-center/cmd/app/test"
 	client "orders-center/internal/client"
 	historyRepo "orders-center/internal/domain/history/repository"
 	historySvc "orders-center/internal/domain/history/service"
@@ -129,7 +130,7 @@ func main() {
 
 	server := server.NewServer(config, router)
 	server.Run()
-	go PostOrderFull(ctx)
+	go test.PostOrderFull(ctx, config.ServerPort)
 	<-ctx.Done()
 	err = enoService.Stop()
 	if err != nil {

@@ -9,11 +9,12 @@ import (
 	orderItem "orders-center/internal/domain/order_item/entity"
 	payment "orders-center/internal/domain/payment/entity"
 	orderFull "orders-center/internal/service/order_full/entity"
+	"strings"
 
 	"time"
 )
 
-func randomString(prefix string) string {
+func randomStringNumeric(prefix string) string {
 	return fmt.Sprintf("%s%d", prefix, rand.Intn(1000))
 }
 
@@ -51,15 +52,15 @@ func randomPaymentType() payment.PaymentType {
 func RandomOrderFull() orderFull.OrderFull {
 	order := order.Order{
 		ID:          randomUUID(),
-		Type:        randomString("order_type_"),
-		Status:      randomString("status_"),
-		City:        randomString("city_"),
-		Subdivision: randomString("subdivision_"),
+		Type:        randomStringNumeric("order_type_"),
+		Status:      randomStringNumeric("status_"),
+		City:        randomStringNumeric("city_"),
+		Subdivision: randomStringNumeric("subdivision_"),
 		Price:       randomFloat(1000.0, 10000.0),
-		Platform:    randomString("platform_"),
+		Platform:    randomStringNumeric("platform_"),
 		GeneralID:   randomUUID(),
-		OrderNumber: randomString("ORD-"),
-		Executor:    randomString("executor_"),
+		OrderNumber: randomStringNumeric("ORD-"),
+		Executor:    randomStringNumeric("executor_"),
 		CreatedAt:   randomDate(),
 		UpdatedAt:   randomDate(),
 	}
@@ -71,18 +72,18 @@ func RandomOrderFull() orderFull.OrderFull {
 	for i := 0; i < numItems; i++ {
 		item := orderItem.OrderItem{
 			ID:            int32(i),
-			ProductID:     randomString("prod_"),
-			ExternalID:    randomString("ext_"),
-			Status:        randomString("status_"),
+			ProductID:     randomStringNumeric("prod_"),
+			ExternalID:    randomStringNumeric("ext_"),
+			Status:        randomStringNumeric("status_"),
 			BasePrice:     randomFloat(100.0, 1000.0),
 			Price:         randomFloat(100.0, 1000.0),
 			EarnedBonuses: randomFloat(0.0, 500.0),
 			SpentBonuses:  randomFloat(0.0, 500.0),
 			Gift:          randomBool(),
-			OwnerID:       randomString("user_"),
-			DeliveryID:    randomString("delivery_"),
-			ShopAssistant: randomString("assistant_"),
-			Warehouse:     randomString("warehouse_"),
+			OwnerID:       randomStringNumeric("user_"),
+			DeliveryID:    randomStringNumeric("delivery_"),
+			ShopAssistant: randomStringNumeric("assistant_"),
+			Warehouse:     randomStringNumeric("warehouse_"),
 			OrderId:       order.ID,
 		}
 		items = append(items, item)
@@ -98,11 +99,11 @@ func RandomOrderFull() orderFull.OrderFull {
 			Type:            randomPaymentType(),
 			Sum:             randomFloat(100.0, 1000.0),
 			Payed:           randomBool(),
-			Info:            randomString("payment_info_"),
-			CreditData:      nil,
-			ContractNumber:  randomString("contract_"),
-			CardPaymentData: nil,
-			ExternalID:      randomString("ext_"),
+			Info:            randomStringNumeric("payment_info_"),
+			CreditData:      randomCreditData(),
+			ContractNumber:  randomStringNumeric("contract_"),
+			CardPaymentData: randomCardPaymentData(),
+			ExternalID:      randomStringNumeric("ext_"),
 		}
 		payments = append(payments, payment)
 	}
@@ -112,12 +113,12 @@ func RandomOrderFull() orderFull.OrderFull {
 	var history []ordHistory.History
 	for i := 0; i < numHistory; i++ {
 		hist := ordHistory.History{
-			Type:     randomString("type_"),
+			Type:     randomStringNumeric("type_"),
 			TypeId:   rand.Int31(),
-			OldValue: []byte(fmt.Sprintf(`{"old_key":"%s"}`, randomString("old_value_"))),
-			Value:    []byte(fmt.Sprintf(`{"new_key":"%s"}`, randomString("new_value_"))),
+			OldValue: []byte(fmt.Sprintf(`{"old_key":"%s"}`, randomStringNumeric("old_value_"))),
+			Value:    []byte(fmt.Sprintf(`{"new_key":"%s"}`, randomStringNumeric("new_value_"))),
 			Date:     randomDate(),
-			UserID:   randomString("user_"),
+			UserID:   randomStringNumeric("user_"),
 			OrderID:  order.ID,
 		}
 		history = append(history, hist)
@@ -130,4 +131,65 @@ func RandomOrderFull() orderFull.OrderFull {
 		History:  history,
 	}
 
+}
+
+func randomString(n int) string {
+	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	sb := strings.Builder{}
+	for i := 0; i < n; i++ {
+		sb.WriteRune(letters[rand.Intn(len(letters))])
+	}
+	return sb.String()
+}
+
+func randomDigits(n int) string {
+	digits := []rune("0123456789")
+	sb := strings.Builder{}
+	for i := 0; i < n; i++ {
+		sb.WriteRune(digits[rand.Intn(len(digits))])
+	}
+	return sb.String()
+}
+
+func randomCreditType() string {
+	types := []string{"Mortgage", "Personal", "Auto", "Business"}
+	return types[rand.Intn(len(types))]
+}
+
+func randomBank() string {
+	banks := []string{"Bank of America", "Chase", "Wells Fargo", "Citibank", "HSBC"}
+	return banks[rand.Intn(len(banks))]
+}
+
+func randomProvider() string {
+	providers := []string{"Visa", "Mastercard", "American Express", "Discover"}
+	return providers[rand.Intn(len(providers))]
+}
+
+func randomTransactionID() string {
+	// e.g. 16 alphanumeric chars
+	return randomString(8) + randomDigits(8)
+}
+
+func randomIIN() string {
+	// IIN usually 12 digits (e.g. national ID)
+	return randomDigits(12)
+}
+
+func randomCreditData() *payment.CreditData {
+	return &payment.CreditData{
+		Bank:           randomBank(),
+		Type:           randomCreditType(),
+		NumberOfMonths: int16(rand.Intn(60) + 1),                         // 1 to 60 months
+		PaySumPerMonth: float64(int(randomFloat(1000, 50000)*100)) / 100, // Rounded to 2 decimals
+		BrokerID:       int32(rand.Intn(1000) + 1),                       // Broker ID 1-1000
+		IIN:            randomIIN(),
+	}
+}
+
+func randomCardPaymentData() *payment.CardPaymentData {
+	return &payment.CardPaymentData{
+		Provider:      randomProvider(),
+		TransactionId: randomTransactionID(),
+	}
 }

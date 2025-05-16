@@ -7,7 +7,7 @@ import (
 
 type Config struct {
 	DBSource           string        `mapstructure:"DB_SOURCE"`      //db !!
-	ServerAddress      string        `mapstructure:"SERVER_ADDRESS"` //server !!
+	ServerPort         string        `mapstructure:"SERVER_PORT"`    //server !!
 	ServerShutDownTime time.Duration `mapstructure:"SHUTDOWN_TIME"`  //server !!
 	MOCK1CAddress      string        `mapstructure:"MOCK1C_ADDRESS"` //client !!
 	CronBatchSize      int           `mapstructure:"BATCH_SIZE"`     //cron !!
@@ -22,13 +22,11 @@ func LoadConfig(path string) (config Config, err error) {
 	viper.SetConfigName("app")
 	viper.SetConfigType("env")
 
-	viper.AutomaticEnv()
-
 	err = viper.ReadInConfig()
 	if err != nil {
 		return
 	}
-
+	viper.AutomaticEnv()
 	err = viper.Unmarshal(&config)
 
 	return

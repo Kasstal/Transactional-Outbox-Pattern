@@ -1,16 +1,18 @@
-package main
+package test
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"orders-center/internal/utils"
 	"time"
 )
 
-func PostOrderFull(ctx context.Context) {
+func PostOrderFull(ctx context.Context, port string) {
+	address := fmt.Sprintf("http://localhost%s/orders", port)
 	for {
 		select {
 		case <-ctx.Done():
@@ -19,7 +21,7 @@ func PostOrderFull(ctx context.Context) {
 
 			order_full := utils.RandomOrderFull()
 			data, err := json.Marshal(order_full)
-			req, err := http.NewRequest("POST", "http://localhost:8080/orders", bytes.NewBuffer(data))
+			req, err := http.NewRequest("POST", address, bytes.NewBuffer(data))
 			if err != nil {
 				log.Printf("failed to create request: %v", err)
 			}
@@ -43,7 +45,7 @@ func PostOrderFull(ctx context.Context) {
 
 		}
 		time.Sleep(1 * time.Millisecond)
-		//time.Sleep(10 * time.Second)
+		//time.Sleep(1 * time.Second)
 	}
 
 }

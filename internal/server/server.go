@@ -18,7 +18,7 @@ type Server struct {
 func NewServer(config utils.Config, router *gin.Engine) *Server {
 
 	srv := &http.Server{
-		Addr:    config.ServerAddress,
+		Addr:    config.ServerPort,
 		Handler: router,
 	}
 
