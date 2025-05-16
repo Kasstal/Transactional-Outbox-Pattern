@@ -20,7 +20,7 @@ func (h *OrderHandler) CreateOrderFull(c *gin.Context) {
 
 	var orderFull orderFull.OrderFull
 	if err := c.ShouldBindJSON(&orderFull); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		c.JSON(http.StatusBadRequest, gin.H{"error1": err.Error()})
 		return
 	}
 

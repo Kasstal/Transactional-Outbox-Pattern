@@ -129,7 +129,7 @@ func main() {
 
 	server := server.NewServer(config, router)
 	server.Run()
-	go PostOrderFull(ctx)
+	//go PostOrderFull(ctx)
 	<-ctx.Done()
 	server.Shutdown()
 

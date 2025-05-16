@@ -106,8 +106,8 @@ CREATE INDEX ON "history" ("date");
 
 
 
----ALTER TABLE "order_items" ADD FOREIGN KEY ("order_id") REFERENCES "orders" ("id");
+ALTER TABLE "order_items" ADD FOREIGN KEY ("order_id") REFERENCES "orders" ("id");
 
---ALTER TABLE "payments" ADD FOREIGN KEY ("order_id") REFERENCES "orders" ("id");
+ALTER TABLE "payments" ADD FOREIGN KEY ("order_id") REFERENCES "orders" ("id");
 
---ALTER TABLE "history" ADD FOREIGN KEY ("order_id") REFERENCES "orders" ("id");
+ALTER TABLE "history" ADD FOREIGN KEY ("order_id") REFERENCES "orders" ("id");

@@ -25,14 +25,18 @@ func (t *TransactionService) ExecTx(ctx context.Context, fn func(ctx context.Con
 		return err
 	}
 
-	defer func() {
+	/*defer func() {
 		if err != nil {
-			tx.Rollback(ctx)
+
 		}
-	}()
+	}()*/
 	txCtx := NewTxContext(ctx, tx)
 	err = fn(txCtx)
 	if err != nil {
+		rbErr := tx.Rollback(ctx)
+		if rbErr != nil {
+			return rbErr
+		}
 		return err
 	}
 	return tx.Commit(ctx)

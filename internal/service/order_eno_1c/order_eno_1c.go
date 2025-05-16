@@ -106,6 +106,7 @@ func (o *OrderEno1c) processTask(ctx context.Context, task cron.Task) error {
 		//RETRIEVE ORDER FULL
 		orderFull, err := o.orderFullService.GetOrderFull(ctx, outboxTask.AggregateID)
 		log.Printf("Order Full : %v In Worker %d", orderFull.Order.ID, id)
+		//If it fails it writes errmsg to outbox and increments count, if count is exceeded it is considered "failed"
 		if err != nil {
 			log.Println("Could not get OrderFull: ", err)
 			//Increment try count
@@ -118,6 +119,7 @@ func (o *OrderEno1c) processTask(ctx context.Context, task cron.Task) error {
 
 		//SENDING TO MOCK1C
 		resp, err := o.client.SendRequest("orders", "POST", orderFull)
+		//If it fails it writes errmsg to outbox and increments count, if count is exceeded it is considered "failed"
 		if resp == nil {
 			incrementErr := o.incrementOrFail(ctx, outboxTask.ID, err.Error())
 			if incrementErr != nil {
